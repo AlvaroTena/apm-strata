@@ -36,6 +36,9 @@ function withSelectHint(choices) {
 /**
  * Prompts user to select an assistant from a list.
  *
+ * When only one assistant is available there is nothing to choose, so the
+ * prompt is skipped and that assistant is returned directly.
+ *
  * @param {Object[]} assistants - Array of assistant objects.
  * @param {string} assistants[].id - Assistant identifier.
  * @param {string} assistants[].name - Display name.
@@ -43,6 +46,10 @@ function withSelectHint(choices) {
  * @returns {Promise<string>} Selected assistant ID.
  */
 export async function selectAssistant(assistants, { header } = {}) {
+  if (assistants.length === 1) {
+    return assistants[0].id;
+  }
+
   logger.clearAndBanner();
   if (header) {
     console.log('  ' + chalk.dim(header));

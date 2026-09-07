@@ -27,9 +27,18 @@ export const CLI_VERSION = packageJson.version;
  * Official APM repository.
  */
 export const OFFICIAL_REPO = {
-  owner: 'sdi2200262',
-  repo: 'agentic-project-management'
+  owner: 'AlvaroTena',
+  repo: 'apm-strata'
 };
+
+/**
+ * Web URL of the official APM repository.
+ *
+ * Single source for user-facing links to issues, docs and skills.
+ *
+ * @type {string}
+ */
+export const OFFICIAL_REPO_URL = `https://github.com/${OFFICIAL_REPO.owner}/${OFFICIAL_REPO.repo}`;
 
 /**
  * CLI major version used to filter compatible releases.
@@ -71,6 +80,7 @@ export const GITHUB_API_BASE = 'https://api.github.com';
 
 export default {
   OFFICIAL_REPO,
+  OFFICIAL_REPO_URL,
   CLI_MAJOR_VERSION,
   CONFIG_DIR,
   CONFIG_FILE,
