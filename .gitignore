@@ -129,3 +129,6 @@ CLAUDE.md
 test/
 # Material de partida para el Planner, no se publica
 VISION.md
+
+# APM session state (local only)
+.apm/
