@@ -45,13 +45,14 @@ export function validateConfig(config) {
       if (!target.id) errors.push(`${prefix}: missing "id"`);
       if (!target.name) errors.push(`${prefix}: missing "name"`);
       if (!target.bundleName) errors.push(`${prefix}: missing "bundleName"`);
-      if (!target.format) errors.push(`${prefix}: missing "format"`);
+      if (!target.rulesFile) errors.push(`${prefix}: missing "rulesFile"`);
       if (!target.directories) {
         errors.push(`${prefix}: missing "directories"`);
       } else {
         if (!target.directories.commands) errors.push(`${prefix}: missing "directories.commands"`);
         if (!target.directories.skills) errors.push(`${prefix}: missing "directories.skills"`);
         if (!target.directories.guides) errors.push(`${prefix}: missing "directories.guides"`);
+        if (!target.directories.agents) errors.push(`${prefix}: missing "directories.agents"`);
       }
     });
   }

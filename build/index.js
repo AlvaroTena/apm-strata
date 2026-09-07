@@ -1,8 +1,7 @@
 /**
  * APM Build System Entry Point
  *
- * Generates AI assistant-specific command bundles from markdown templates.
- * All current targets emit the Markdown output format.
+ * Generates the Claude Code bundle from markdown templates.
  *
  * Usage: node build/index.js
  *

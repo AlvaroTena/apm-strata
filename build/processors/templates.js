@@ -10,8 +10,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import logger from '../utils/logger.js';
 import { findMdFiles } from '../utils/files.js';
-import { parseFrontmatter } from './frontmatter.js';
-import { replacePlaceholders, getOutputExtension } from './placeholders.js';
+import { replacePlaceholders } from './placeholders.js';
 import { generateReleaseManifest } from '../generators/manifest.js';
 import { createZipArchive } from '../generators/archive.js';
 import { getVersion } from '../core/config.js';
@@ -72,7 +71,6 @@ async function processTemplate(templatePath, options) {
 
   const context = { version, target };
   const basename = path.basename(templatePath, '.md');
-  const ext = getOutputExtension(target);
   let finalContent;
   let outputPath;
 
@@ -81,43 +79,16 @@ async function processTemplate(templatePath, options) {
     finalContent = replacePlaceholders(content, context);
     outputPath = path.join(guidesDir, `${basename}.md`);
   } else {
-    // Commands and Skills: parse frontmatter
-    const { frontmatter, content: body } = parseFrontmatter(content);
-    const processedBody = replacePlaceholders(body, context);
-    const processedFull = replacePlaceholders(content, context);
+    // Commands, agents and skills keep their frontmatter in the output
+    finalContent = replacePlaceholders(content, context);
 
     if (isCommand) {
-      if (target.format === 'toml') {
-        const description = frontmatter.description || 'APM command';
-        finalContent = `description = "${description}"\n\nprompt = """\n${processedBody}\n"""\n`;
-        outputPath = path.join(commandsDir, `${basename}${ext}`);
-      } else if (target.id === 'codex') {
-        // Codex: commands become skills in directory structure (skills/<name>/SKILL.md)
-        const codexFrontmatter = `---\nname: ${basename}\ndescription: ${frontmatter.description || 'APM command'}\nuser-invocable: true\n---\n`;
-        finalContent = codexFrontmatter + processedBody;
-        const skillDir = path.join(commandsDir, basename);
-        await fs.ensureDir(skillDir);
-        outputPath = path.join(skillDir, 'SKILL.md');
-      } else {
-        finalContent = processedFull;
-        outputPath = path.join(commandsDir, `${basename}${ext}`);
-      }
+      outputPath = path.join(commandsDir, `${basename}.md`);
     } else if (isAgent) {
-      if (target.id === 'codex') {
-        // Codex: agents are TOML files with developer_instructions
-        const name = frontmatter.name || basename;
-        const description = (frontmatter.description || '').replace(/"/g, '\\"');
-        finalContent = `name = "${name}"\ndescription = "${description}"\n\ndeveloper_instructions = """\n${processedBody}\n"""\n`;
-        outputPath = path.join(agentsDir, `${basename}.toml`);
-      } else {
-        // Agents: flat files (agents/<agent-name>.md, Copilot: <agent-name>.agent.md)
-        finalContent = processedFull;
-        const agentExt = target.id === 'copilot' ? '.agent.md' : '.md';
-        outputPath = path.join(agentsDir, `${basename}${agentExt}`);
-      }
+      // Agents: flat files (agents/<agent-name>.md)
+      outputPath = path.join(agentsDir, `${basename}.md`);
     } else {
       // Skills: directory-based structure (skills/<skill-name>/SKILL.md + optional files)
-      finalContent = processedFull;
       const relativePath = path.relative(sourceDir, templatePath);
       const pathParts = relativePath.split(path.sep);
       // pathParts: ['skills', '<skill-name>', '<file>.md']

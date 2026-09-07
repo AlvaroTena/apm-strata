@@ -16,19 +16,20 @@ import path from 'path';
  * - {TIMESTAMP}: ISO timestamp
  * - {SKILL_PATH:name}: Full path to skill file (<name>/SKILL.md)
  * - {GUIDE_PATH:name}: Full path to guide file (<name>.md) - flat structure, no frontmatter
- * - {COMMAND_PATH:name}: Full path to command file (resolves extension per target)
- * - {AGENT_PATH:name}: Full path to agent file (<name>.md, Copilot: <name>.agent.md)
- * - {ARGS}: $ARGUMENTS (markdown) or {{args}} (toml)
- * - {RULES_FILE}: Platform-specific agents file name
- * - {SKILLS_DIR}: Platform-specific skills directory
- * - {AGENTS_DIR}: Platform-specific agents directory
- * - {PLANNER_SUBAGENT_GUIDANCE}: Platform-specific subagent exploration guidance for Planner
- * - {MANAGER_SUBAGENT_GUIDANCE}: Platform-specific subagent guidance for Manager investigation
- * - {WORKER_SUBAGENT_GUIDANCE}: Platform-specific subagent guidance for Worker context integration
- * - {SUBAGENT_GUIDANCE}: Platform-specific subagent guidance for non-role agents (standalone commands)
- * - {ARCHIVE_EXPLORER_GUIDANCE}: Platform-specific guidance for spawning the apm-archive-explorer custom agent
- * - {CONTEXT_ATTACH_SYNTAX}: Platform-specific instructions for how Users reference files in chat
- * - {NEW_CHAT_GUIDANCE}: Platform-specific natural language clause for starting a new chat
+ * - {COMMAND_PATH:name}: Full path to command file (<name>.md)
+ * - {AGENT_PATH:name}: Full path to agent file (<name>.md)
+ * - {ARGS}: Argument variable
+ * - {RULES_FILE}: Rules file name, read from the target's rulesFile field
+ * - {SKILLS_DIR}: Skills directory
+ * - {GUIDES_DIR}: Guides directory
+ * - {AGENTS_DIR}: Agents directory
+ * - {PLANNER_SUBAGENT_GUIDANCE}: Subagent exploration guidance for Planner
+ * - {MANAGER_SUBAGENT_GUIDANCE}: Subagent guidance for Manager investigation
+ * - {WORKER_SUBAGENT_GUIDANCE}: Subagent guidance for Worker context integration
+ * - {SUBAGENT_GUIDANCE}: Subagent guidance for non-role agents (standalone commands)
+ * - {ARCHIVE_EXPLORER_GUIDANCE}: Guidance for spawning the apm-archive-explorer custom agent
+ * - {CONTEXT_ATTACH_SYNTAX}: Instructions for how Users reference files in chat
+ * - {NEW_CHAT_GUIDANCE}: Natural language clause for starting a new chat
  *
  * @param {string} content - Template content with placeholders.
  * @param {Object} context - Replacement context.
@@ -44,7 +45,7 @@ export function replacePlaceholders(content, context) {
     now = new Date()
   } = context;
 
-  const { directories, format, id } = target;
+  const { directories, rulesFile } = target;
   const subagentGuidance = target.subagentGuidance;
 
   let replaced = content
@@ -61,36 +62,22 @@ export function replacePlaceholders(content, context) {
     return path.join(directories.guides, `${guideName}.md`);
   });
 
-  // Replace AGENT_PATH placeholder (agents are flat files: <name>.md, Copilot: <name>.agent.md, Codex: <name>.toml)
-  const agentExt = id === 'copilot' ? '.agent.md' : id === 'codex' ? '.toml' : '.md';
+  // Replace AGENT_PATH placeholder (agents are flat files: <name>.md)
   replaced = replaced.replace(/{AGENT_PATH:([^}]+)}/g, (_match, agentName) => {
-    return path.join(directories.agents, `${agentName}${agentExt}`);
+    return path.join(directories.agents, `${agentName}.md`);
   });
 
-  // Replace COMMAND_PATH placeholder (resolves to full path with target-specific extension)
-  // Codex: commands are skills in directory structure (skills/<name>/SKILL.md)
-  const commandExt = getOutputExtension(target);
+  // Replace COMMAND_PATH placeholder (commands are flat files: <name>.md)
   replaced = replaced.replace(/{COMMAND_PATH:([^}]+)}/g, (_match, commandName) => {
     const base = path.basename(commandName, path.extname(commandName));
-    if (id === 'codex') {
-      return path.join(directories.commands, base, 'SKILL.md');
-    }
-    return path.join(directories.commands, `${base}${commandExt}`);
+    return path.join(directories.commands, `${base}.md`);
   });
 
-  // Replace ARGS placeholder based on format
-  // Platforms with native argument variables: Claude ($ARGUMENTS), Copilot (${input:args}),
-  // OpenCode ($ARGUMENTS); the TOML output format uses {{args}}. Cursor and Codex have no
-  // argument variable, so descriptive text is used so the model picks up the user's input naturally.
-  const argsPlaceholder = format === 'toml' ? '{{args}}'
-    : id === 'copilot' ? '${input:args}'
-    : (id === 'codex' || id === 'cursor') ? '(the text provided by the User after the command invocation, if any)'
-    : '$ARGUMENTS';
-  replaced = replaced.replace(/{ARGS}/g, argsPlaceholder);
+  // Replace ARGS placeholder
+  replaced = replaced.replace(/{ARGS}/g, '$ARGUMENTS');
 
   // Replace RULES_FILE placeholder
-  const rulesFileName = id === 'claude' ? 'CLAUDE.md' : 'AGENTS.md';
-  replaced = replaced.replace(/{RULES_FILE}/g, rulesFileName);
+  replaced = replaced.replace(/{RULES_FILE}/g, rulesFile);
 
   // Replace SKILLS_DIR placeholder
   replaced = replaced.replace(/{SKILLS_DIR}/g, directories.skills);
@@ -121,7 +108,7 @@ export function replacePlaceholders(content, context) {
   replaced = replaced.replace(/{SUBAGENT_GUIDANCE}/g, subagentGuidanceText);
 
   // Replace ARCHIVE_EXPLORER_GUIDANCE placeholder
-  const archiveExplorerPath = path.join(directories.agents, `apm-archive-explorer${agentExt}`);
+  const archiveExplorerPath = path.join(directories.agents, 'apm-archive-explorer.md');
   const archiveExplorerText = `spawn a subagent with the \`${archiveExplorerPath}\` agent configuration and pass it the archive path(s) to explore`;
   replaced = replaced.replace(/{ARCHIVE_EXPLORER_GUIDANCE}/g, archiveExplorerText);
 
@@ -134,19 +121,4 @@ export function replacePlaceholders(content, context) {
   return replaced;
 }
 
-/**
- * Determines the output file extension for a target.
- *
- * @param {Object} target - Target configuration object.
- * @returns {string} File extension including dot (e.g., '.md', '.toml', '.prompt.md').
- */
-export function getOutputExtension(target) {
-  if (target.format === 'toml') {
-    return '.toml';
-  }
-  if (target.id === 'copilot') {
-    return '.prompt.md';
-  }
-  return '.md';
-}
-
+export default { replacePlaceholders };
