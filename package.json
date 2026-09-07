@@ -4,11 +4,12 @@
   "description": "Agentic Project Management CLI",
   "scripts": {
     "build": "node build/index.js",
-    "build:release": "node build/index.js"
+    "build:release": "node build/index.js",
+    "test": "vitest run"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sdi2200262/agentic-project-management.git"
+    "url": "git+https://github.com/AlvaroTena/apm-strata.git"
   },
   "keywords": [
     "agentic",
@@ -25,9 +26,9 @@
     "agentic-pm": "src/index.js"
   },
   "bugs": {
-    "url": "https://github.com/sdi2200262/agentic-project-management/issues"
+    "url": "https://github.com/AlvaroTena/apm-strata/issues"
   },
-  "homepage": "https://github.com/sdi2200262/agentic-project-management#readme",
+  "homepage": "https://github.com/AlvaroTena/apm-strata#readme",
   "engines": {
     "node": ">=18"
   },
@@ -44,6 +45,7 @@
   },
   "devDependencies": {
     "archiver": "^7.0.1",
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^4.1.1",
+    "vitest": "^3.2.4"
   }
 }

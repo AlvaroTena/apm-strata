@@ -17,7 +17,7 @@ import { archiveCommand } from './commands/archive.js';
 import { addCommand } from './commands/add.js';
 import { removeCommand } from './commands/remove.js';
 import { statusCommand } from './commands/status.js';
-import { CLI_VERSION } from './core/constants.js';
+import { CLI_VERSION, OFFICIAL_REPO_URL } from './core/constants.js';
 import { CLIError } from './core/errors.js';
 import logger from './ui/logger.js';
 
@@ -85,11 +85,11 @@ function displayHelp() {
   console.log(`            - Compatible with v1.x.x agentic-pm CLI`);
   console.log(`            - Update via: ${chalk.yellow('apm update')}`);
   console.log('');
-  console.log(chalk.gray('Learn more:') + ' ' + chalk.blue.underline('https://github.com/sdi2200262/agentic-project-management'));
+  console.log(chalk.gray('Learn more:') + ' ' + chalk.blue.underline(OFFICIAL_REPO_URL));
   console.log('');
   console.log(chalk.gray('New to APM? The apm-assist skill gives your AI assistant full knowledge of'));
   console.log(chalk.gray('the framework so it can answer questions and help with migration.'));
-  console.log(chalk.gray('See:') + ' ' + chalk.blue.underline('https://github.com/sdi2200262/agentic-project-management/tree/main/skills#installing-skills'));
+  console.log(chalk.gray('See:') + ' ' + chalk.blue.underline(`${OFFICIAL_REPO_URL}/tree/main/skills`));
   console.log('');
 }
 

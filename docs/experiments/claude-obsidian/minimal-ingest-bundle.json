@@ -1,0 +1,30 @@
+{
+  "schema": "claude-obsidian.transaction.v1",
+  "operation_id": "ingest-spike-01",
+  "operation_type": "ingest",
+  "expected_hashes": {
+    "wiki/concepts/Backup-Retention.md": null,
+    "wiki/meta/ledgers/source-ledger.json": "3cc0eedf7ca0ed6ee16e474d734b824521aa9e4bcd47fb4f9707eed4317bedff",
+    "wiki/meta/ledgers/claim-ledger.json": "a3a7604fcf6635d5fdcb3704bccc99c221163b0a37742dbdc5b365c15626f1c9"
+  },
+  "writes": [
+    {
+      "path": "wiki/concepts/Backup-Retention.md",
+      "mode": "create",
+      "content": "# Backup Retention\n\nNightly backups of the reporting database are kept for 30 days.\n",
+      "sha256": "eee56bc1751aeb47b9ecca077e61e642b04d40a2e6dc39967af10d03134c7bd5"
+    },
+    {
+      "path": "wiki/meta/ledgers/source-ledger.json",
+      "mode": "replace",
+      "content": "{\n  \"generated_at\": \"2026-09-07T23:40:00Z\",\n  \"schema\": \"claude-obsidian.source-ledger.v1\",\n  \"sources\": {\n    \"src-6b5a3ce3a0e8e65f349f\": {\n      \"authority\": \"primary\",\n      \"content_kind\": \"document\",\n      \"content_sha256\": \"da0247ddda6dee16775d4c08941b9a4b454f6ea20b70faeaac7c052f3349975f\",\n      \"ingested_at\": \"2026-09-07\",\n      \"origin\": {\n        \"kind\": \"file\",\n        \"locator\": \"inbox/sample-note.md\"\n      },\n      \"pages\": [\n        \"wiki/concepts/Backup-Retention.md\"\n      ],\n      \"refresh_due\": \"2027-09-07\",\n      \"review_status\": \"active\",\n      \"title\": \"Retention policy note\"\n    }\n  }\n}\n",
+      "sha256": "2ae086d6d31954349b7362902ff7be0c2e94fb5cbd71c1cf716a4a0a5a86d122"
+    },
+    {
+      "path": "wiki/meta/ledgers/claim-ledger.json",
+      "mode": "replace",
+      "content": "{\n  \"claims\": {\n    \"clm-backup-retention-30d\": {\n      \"assessment\": \"provisional\",\n      \"confidence\": \"medium\",\n      \"evidence\": [\n        {\n          \"relation\": \"supports\",\n          \"source_id\": \"src-6b5a3ce3a0e8e65f349f\"\n        }\n      ],\n      \"location\": {\n        \"path\": \"wiki/concepts/Backup-Retention.md\"\n      },\n      \"risk\": \"normal\",\n      \"text\": \"Nightly backups of the reporting database are retained for 30 days.\"\n    }\n  },\n  \"generated_at\": \"2026-09-07T23:40:00Z\",\n  \"schema\": \"claude-obsidian.claim-ledger.v1\"\n}\n",
+      "sha256": "841160f098db49ed12211727619d6e58da25834a6e47303803cfcb01ea50dd58"
+    }
+  ]
+}
