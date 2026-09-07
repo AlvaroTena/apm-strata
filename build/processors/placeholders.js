@@ -9,15 +9,22 @@
 import path from 'path';
 
 /**
+ * Namespace prefix shared by every APM skill directory and invocation name.
+ * @type {string}
+ */
+const SKILL_NAME_PREFIX = 'apm.';
+
+/**
  * Replaces template placeholders with target-specific values.
  *
  * Supported placeholders:
  * - {VERSION}: Package version
  * - {TIMESTAMP}: ISO timestamp
+ * - {SKILL_NAME:slug}: Skill invocation name (/apm.<slug>)
  * - {SKILL_PATH:name}: Full path to skill file (<name>/SKILL.md)
  * - {GUIDE_PATH:name}: Full path to guide file (<name>.md) - flat structure, no frontmatter
- * - {COMMAND_PATH:name}: Full path to command file (<name>.md)
  * - {AGENT_PATH:name}: Full path to agent file (<name>.md)
+ * - {HOOK_PATH:name}: Full path to hook script (<hooks dir>/<name>.sh)
  * - {ARGS}: Argument variable
  * - {RULES_FILE}: Rules file name, read from the target's rulesFile field
  * - {SKILLS_DIR}: Skills directory
@@ -26,7 +33,7 @@ import path from 'path';
  * - {PLANNER_SUBAGENT_GUIDANCE}: Subagent exploration guidance for Planner
  * - {MANAGER_SUBAGENT_GUIDANCE}: Subagent guidance for Manager investigation
  * - {WORKER_SUBAGENT_GUIDANCE}: Subagent guidance for Worker context integration
- * - {SUBAGENT_GUIDANCE}: Subagent guidance for non-role agents (standalone commands)
+ * - {SUBAGENT_GUIDANCE}: Subagent guidance for non-role agents
  * - {ARCHIVE_EXPLORER_GUIDANCE}: Guidance for spawning the apm-archive-explorer custom agent
  * - {CONTEXT_ATTACH_SYNTAX}: Instructions for how Users reference files in chat
  * - {NEW_CHAT_GUIDANCE}: Natural language clause for starting a new chat
@@ -52,6 +59,11 @@ export function replacePlaceholders(content, context) {
     .replace(/{VERSION}/g, version)
     .replace(/{TIMESTAMP}/g, now.toISOString());
 
+  // Replace SKILL_NAME placeholder (skills are invoked as /apm.<slug>)
+  replaced = replaced.replace(/{SKILL_NAME:([^}]+)}/g, (_match, slug) => {
+    return `/${SKILL_NAME_PREFIX}${slug}`;
+  });
+
   // Replace SKILL_PATH placeholder (skills are in <name>/SKILL.md structure)
   replaced = replaced.replace(/{SKILL_PATH:([^}]+)}/g, (_match, skillName) => {
     return path.join(directories.skills, skillName, 'SKILL.md');
@@ -67,10 +79,9 @@ export function replacePlaceholders(content, context) {
     return path.join(directories.agents, `${agentName}.md`);
   });
 
-  // Replace COMMAND_PATH placeholder (commands are flat files: <name>.md)
-  replaced = replaced.replace(/{COMMAND_PATH:([^}]+)}/g, (_match, commandName) => {
-    const base = path.basename(commandName, path.extname(commandName));
-    return path.join(directories.commands, `${base}.md`);
+  // Replace HOOK_PATH placeholder (hook scripts are flat files: <name>.sh)
+  replaced = replaced.replace(/{HOOK_PATH:([^}]+)}/g, (_match, hookName) => {
+    return path.join(directories.hooks, `${hookName}.sh`);
   });
 
   // Replace ARGS placeholder

@@ -12,10 +12,10 @@
       "configDir": ".claude",
       "rulesFile": "CLAUDE.local.md",
       "directories": {
-        "commands": ".claude/commands",
         "skills": ".claude/skills",
         "guides": ".claude/apm-guides",
-        "agents": ".claude/agents"
+        "agents": ".claude/agents",
+        "hooks": ".claude/apm-hooks"
       },
       "contextAttachSyntax": "Reference the file using `@` followed by the file path.",
       "newChatGuidance": "Open a new terminal and start Claude Code",

@@ -23,7 +23,6 @@ export const BuildErrorCode = {
   TEMPLATE_READ_FAILED: 'TEMPLATE_READ_FAILED',
 
   // Build errors
-  DUPLICATE_COMMAND: 'DUPLICATE_COMMAND',
   ARCHIVE_FAILED: 'ARCHIVE_FAILED',
   WRITE_FAILED: 'WRITE_FAILED'
 };
@@ -133,17 +132,17 @@ export class BuildError extends Error {
   }
 
   /**
-   * Creates a BuildError for duplicate command names.
+   * Creates a BuildError for a template whose frontmatter failed validation.
    *
-   * @param {string} name - Duplicate command name.
-   * @param {string[]} files - Files containing the duplicate.
+   * @param {string} file - Template file path.
+   * @param {string[]} errors - Validation error messages.
    * @returns {BuildError} Formatted error instance.
    */
-  static duplicateCommand(name, files) {
+  static frontmatterInvalid(file, errors) {
     return new BuildError(
-      `Duplicate command_name "${name}" in: ${files.join(', ')}`,
-      BuildErrorCode.DUPLICATE_COMMAND,
-      { name, files }
+      `Invalid frontmatter: ${errors.join('; ')}`,
+      BuildErrorCode.TEMPLATE_MISSING_FIELD,
+      { file, errors }
     );
   }
 

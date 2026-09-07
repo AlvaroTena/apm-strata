@@ -9,7 +9,8 @@
 import fs from 'fs-extra';
 import path from 'path';
 import logger from '../utils/logger.js';
-import { findMdFiles } from '../utils/files.js';
+import { findTemplateFiles } from '../utils/files.js';
+import { assertValidFrontmatter } from './frontmatter.js';
 import { replacePlaceholders } from './placeholders.js';
 import { generateReleaseManifest } from '../generators/manifest.js';
 import { createZipArchive } from '../generators/archive.js';
@@ -17,91 +18,80 @@ import { getVersion } from '../core/config.js';
 import { BuildError } from '../core/errors.js';
 
 /**
- * Determines if a template file is a command based on its source directory.
- *
- * @param {string} templatePath - Path to template file.
- * @param {string} sourceDir - Source templates directory.
- * @returns {boolean} True if file is in commands/ directory.
+ * File extensions that carry placeholders. Everything else is copied byte for byte.
+ * @type {Set<string>}
  */
-function isCommandTemplate(templatePath, sourceDir) {
-  const relativePath = path.relative(sourceDir, templatePath);
-  return relativePath.startsWith('commands' + path.sep);
-}
+const SUBSTITUTED_EXTENSIONS = new Set(['.md', '.sh']);
 
 /**
- * Determines if a template file is a guide based on its source directory.
- *
- * @param {string} templatePath - Path to template file.
- * @param {string} sourceDir - Source templates directory.
- * @returns {boolean} True if file is in guides/ directory.
+ * Categories emitted as whole directory trees, preserving their internal layout.
+ * @type {Set<string>}
  */
-function isGuideTemplate(templatePath, sourceDir) {
-  const relativePath = path.relative(sourceDir, templatePath);
-  return relativePath.startsWith('guides' + path.sep);
-}
+const RECURSIVE_CATEGORIES = new Set(['skills', 'hooks']);
 
 /**
- * Determines if a template file is an agent based on its source directory.
+ * Resolves the output path for a template file.
  *
- * @param {string} templatePath - Path to template file.
+ * Guides and agents are emitted flat. Skills and hooks keep the directory
+ * structure they have below their category directory, so a skill can ship
+ * reference files and a hooks tree can be nested.
+ *
+ * @param {Object} template - Discovered template with {path, category}.
  * @param {string} sourceDir - Source templates directory.
- * @returns {boolean} True if file is in agents/ directory.
+ * @param {Object} outputDirs - Output directory per category.
+ * @returns {string} Absolute output path.
  */
-function isAgentTemplate(templatePath, sourceDir) {
-  const relativePath = path.relative(sourceDir, templatePath);
-  return relativePath.startsWith('agents' + path.sep);
+function resolveOutputPath(template, sourceDir, outputDirs) {
+  const { path: templatePath, category } = template;
+  const categoryDir = outputDirs[category];
+
+  if (RECURSIVE_CATEGORIES.has(category)) {
+    // Path below templates/<category>/, e.g. 'apm.communication/references/x.json'
+    const relativePath = path.relative(path.join(sourceDir, category), templatePath);
+    return path.join(categoryDir, relativePath);
+  }
+
+  return path.join(categoryDir, path.basename(templatePath));
 }
 
 /**
  * Processes a single template file.
  *
- * @param {string} templatePath - Path to template file.
+ * @param {Object} template - Discovered template with {path, category}.
  * @param {Object} options - Processing options.
  * @returns {Promise<void>}
  */
-async function processTemplate(templatePath, options) {
-  const { target, version, commandsDir, skillsDir, guidesDir, agentsDir, targetBuildDir, sourceDir } = options;
+async function processTemplate(template, options) {
+  const { target, version, outputDirs, targetBuildDir, sourceDir } = options;
+  const { path: templatePath, category } = template;
+
+  const outputPath = resolveOutputPath(template, sourceDir, outputDirs);
+  await fs.ensureDir(path.dirname(outputPath));
+
+  const extension = path.extname(templatePath);
+
+  if (!SUBSTITUTED_EXTENSIONS.has(extension)) {
+    // Support files are copied verbatim, permissions included
+    await fs.copy(templatePath, outputPath, { preserveTimestamps: true });
+    logger.info(`${category}: ${path.basename(templatePath)} → ${path.relative(targetBuildDir, outputPath)}`);
+    return;
+  }
 
   const content = await fs.readFile(templatePath, 'utf8');
 
-  const isCommand = isCommandTemplate(templatePath, sourceDir);
-  const isGuide = isGuideTemplate(templatePath, sourceDir);
-  const isAgent = isAgentTemplate(templatePath, sourceDir);
-  const category = isCommand ? 'command' : (isGuide ? 'guide' : (isAgent ? 'agent' : 'skill'));
-
-  const context = { version, target };
-  const basename = path.basename(templatePath, '.md');
-  let finalContent;
-  let outputPath;
-
-  if (isGuide) {
-    // Guides: plain markdown, no frontmatter, flat files
-    finalContent = replacePlaceholders(content, context);
-    outputPath = path.join(guidesDir, `${basename}.md`);
-  } else {
-    // Commands, agents and skills keep their frontmatter in the output
-    finalContent = replacePlaceholders(content, context);
-
-    if (isCommand) {
-      outputPath = path.join(commandsDir, `${basename}.md`);
-    } else if (isAgent) {
-      // Agents: flat files (agents/<agent-name>.md)
-      outputPath = path.join(agentsDir, `${basename}.md`);
-    } else {
-      // Skills: directory-based structure (skills/<skill-name>/SKILL.md + optional files)
-      const relativePath = path.relative(sourceDir, templatePath);
-      const pathParts = relativePath.split(path.sep);
-      // pathParts: ['skills', '<skill-name>', '<file>.md']
-      const skillName = pathParts[1];
-      const fileName = pathParts[pathParts.length - 1];
-      const skillDir = path.join(skillsDir, skillName);
-      await fs.ensureDir(skillDir);
-      outputPath = path.join(skillDir, fileName);
-    }
+  // Skills and agents declare themselves in frontmatter; guides and hooks do not
+  const isSkillEntry = category === 'skills' && path.basename(templatePath) === 'SKILL.md';
+  if (isSkillEntry || category === 'agents') {
+    assertValidFrontmatter(content, path.relative(sourceDir, templatePath));
   }
 
-  await fs.writeFile(outputPath, finalContent);
-  logger.info(`${category}: ${basename}.md → ${path.relative(targetBuildDir, outputPath)}`);
+  await fs.writeFile(outputPath, replacePlaceholders(content, { version, target }));
+
+  // Preserve the source mode so hook scripts stay executable
+  const { mode } = await fs.stat(templatePath);
+  await fs.chmod(outputPath, mode);
+
+  logger.info(`${category}: ${path.basename(templatePath)} → ${path.relative(targetBuildDir, outputPath)}`);
 }
 
 /**
@@ -134,34 +124,27 @@ async function buildTarget(target, config, version) {
   const { outputDir, sourceDir } = buildConfig;
 
   const targetBuildDir = path.join(outputDir, `${target.id}-build`);
-  const commandsDir = path.join(targetBuildDir, target.directories.commands);
-  const skillsDir = path.join(targetBuildDir, target.directories.skills);
-  const guidesDir = path.join(targetBuildDir, target.directories.guides);
-  const agentsDir = path.join(targetBuildDir, target.directories.agents);
+  const outputDirs = {
+    guides: path.join(targetBuildDir, target.directories.guides),
+    skills: path.join(targetBuildDir, target.directories.skills),
+    agents: path.join(targetBuildDir, target.directories.agents),
+    hooks: path.join(targetBuildDir, target.directories.hooks)
+  };
 
   logger.info(`\nProcessing target: ${target.name} (${target.id})`);
 
-  await fs.ensureDir(commandsDir);
-  await fs.ensureDir(skillsDir);
-  await fs.ensureDir(guidesDir);
-  await fs.ensureDir(agentsDir);
-
-  // Copy apm/ → .apm/ (common to all targets)
+  // Copy apm/ → .apm/
   await copyApmDirectory(sourceDir, targetBuildDir);
 
   // Find template files (excludes _standards/ and apm/)
-  const templateFiles = await findMdFiles(sourceDir);
-  logger.info(`Found ${templateFiles.length} template files`);
+  const templates = await findTemplateFiles(sourceDir);
+  logger.info(`Found ${templates.length} template files`);
 
-  // Process all templates
-  for (const templatePath of templateFiles) {
-    await processTemplate(templatePath, {
+  for (const template of templates) {
+    await processTemplate(template, {
       target,
       version,
-      commandsDir,
-      skillsDir,
-      guidesDir,
-      agentsDir,
+      outputDirs,
       targetBuildDir,
       sourceDir
     });
@@ -215,3 +198,5 @@ export async function buildAll(config) {
 
   logger.success('\nBuild completed successfully!');
 }
+
+export default { buildAll };
