@@ -133,6 +133,9 @@ describe('dispatch gate: deferred condition', () => {
     expect(status).toBe(2);
     expect(stderr).toContain('Retire the legacy parcel router');
     expect(stderr).toContain('Task 2.9');
+    // An unexpected block is usually a status word outside the closed set, so
+    // the message has to point at the word rather than only at the item.
+    expect(stderr).toContain('counts as open unless it reads as');
   });
 
   it('allows a dispatch when the open item blocks a different task', () => {

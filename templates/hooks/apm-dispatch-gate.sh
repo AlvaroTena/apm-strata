@@ -192,8 +192,14 @@ if [ -n "$task_id" ] && [ -f "$TRACKER" ]; then
     }
   ' "$TRACKER")
   if [ -n "$deferred" ]; then
+    # The status is quoted back and the closed vocabulary is named, because the
+    # common cause of an unexpected block is a status word outside that set
+    # rather than work that is genuinely unfinished. Without this line the
+    # reader goes to look at the item instead of at the word.
     blocks="${blocks}Open deferred item blocking Task ${task_id}, from ${TRACKER}:
 $(printf '%s\n' "$deferred" | sed 's/^/  /')
+  A status counts as open unless it reads as done, closed, resolved, complete,
+  completed, dropped or [x]. Any other word, including an empty cell, blocks.
 "
   fi
 fi
