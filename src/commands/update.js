@@ -16,6 +16,7 @@ import { createArchive, generateArchiveName } from '../services/archive.js';
 import { removeInstalledFiles } from '../services/cleanup.js';
 import { confirmDestructiveAction, confirmAction, selectRelease, selectPrompt, confirmSecurityDisclaimer } from '../ui/prompts.js';
 import { getRepoSettings, addCustomRepo, updateRepoSettings } from '../core/config.js';
+import { installApmHooks } from '../services/settings.js';
 import logger from '../ui/logger.js';
 import path from 'path';
 
@@ -148,6 +149,7 @@ export async function updateCommand(options = {}) {
     installedFiles: newInstalledFiles
   });
   await writeMetadata(newMetadata, cwd);
+  await installApmHooks(cwd);
 
   // Offer to save custom repo if not already saved
   if (metadata.source === 'custom') {

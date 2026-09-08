@@ -11,6 +11,7 @@ import { CLIError } from '../core/errors.js';
 import { readMetadata, writeMetadata, getInstalledFiles } from '../core/metadata.js';
 import { removeInstalledFiles } from '../services/cleanup.js';
 import { selectPrompt, confirmDestructiveAction } from '../ui/prompts.js';
+import { removeApmHooks } from '../services/settings.js';
 import logger from '../ui/logger.js';
 
 /**
@@ -90,6 +91,12 @@ export async function removeCommand(options = {}) {
   metadata.installedFiles = remainingFiles;
   metadata.cliVersion = CLI_VERSION;
   await writeMetadata(metadata);
+
+  // The hook scripts live in an assistant's config directory, so the
+  // declarations outlive their scripts once the last assistant is gone.
+  if (!remaining.length) {
+    await removeApmHooks();
+  }
 
   // Clear content for final output
   logger.clearAndBanner();

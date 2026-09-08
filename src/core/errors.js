@@ -44,7 +44,10 @@ export const CLIErrorCode = {
 
   // Delta errors
   DELTA_NOT_FOUND: 'DELTA_NOT_FOUND',
-  DELTA_INVALID: 'DELTA_INVALID'
+  DELTA_INVALID: 'DELTA_INVALID',
+
+  // Project settings errors
+  SETTINGS_UNREADABLE: 'SETTINGS_UNREADABLE'
 };
 
 /**
@@ -311,6 +314,21 @@ export class CLIError extends Error {
       `Delta validation failed with ${count} violation(s)`,
       CLIErrorCode.DELTA_INVALID,
       { count }
+    );
+  }
+
+  /**
+   * Creates an unreadable settings error.
+   *
+   * @param {string} file - Settings file path.
+   * @param {string} reason - Why it could not be read.
+   * @returns {CLIError} Formatted error instance.
+   */
+  static settingsUnreadable(file, reason) {
+    return new CLIError(
+      `${file} is not readable JSON (${reason}). Fix or move it, then run the command again; it was left untouched.`,
+      CLIErrorCode.SETTINGS_UNREADABLE,
+      { file, reason }
     );
   }
 

@@ -58,6 +58,7 @@ Use semantic codes from `CLIErrorCode`:
 - `TASK_LOG_INVALID` - Task log claims section missing or malformed
 - `DELTA_NOT_FOUND` - No delta document at the given path
 - `DELTA_INVALID` - Delta violates one or more format rules
+- `SETTINGS_UNREADABLE` - Project settings file exists but is not readable JSON
 
 ## Module Structure
 
@@ -91,6 +92,7 @@ Each module handles one concern:
 - `services/knowledge/claims.js` - Task log claims section parser
 - `services/knowledge/exec.js` - External process execution without a shell
 - `services/delta.js` - Delta parser and format rules
+- `services/settings.js` - Project Claude Code settings merge
 
 ### Tests
 
@@ -393,6 +395,53 @@ directory, which is walked. Exits non-zero when any rule is violated.
 4. Report per document.
 5. Fail when any violation was found.
 6. Report success.
+
+### Project Settings
+
+Installation declares APM's hooks in the project's `.claude/settings.json`
+through `services/settings.js`, from every path that installs or reinstalls a
+bundle: `init`, `custom`, `add` and `update`. `remove` withdraws them once the
+last assistant is gone, because the hook scripts live in an assistant's config
+directory and the declarations would otherwise outlive them.
+
+**That file belongs to the user. Merge into it; never write over it.** A
+project may already carry its own hooks on the same events, its permissions,
+its environment, its model. Losing any of that would be a silent failure: the
+user finds out when something stops working for no visible reason. Everything
+not APM's own is copied through untouched, and the writer prunes only what it
+emptied.
+
+Rules the merge follows, each of which a test pins:
+
+- **Ownership is decided by the script path inside the command**, not by
+  position in the array and not by the event. A user's hook on the same event
+  and matcher survives as its own matcher group, and APM's entry is recognized
+  again after the user reformats the file.
+- **Installing twice changes nothing.** An existing entry of ours is replaced
+  in place rather than appended, so a corrected command also lands on
+  reinstall.
+- **An unparseable file is refused, not rewritten.** Rewriting it would destroy
+  whatever the user has in there. `SETTINGS_UNREADABLE` says so and the file is
+  left alone.
+- **Withdrawal is surgical.** A matcher group shared with the user keeps its
+  own handlers; an event keeps its other groups; `hooks` survives if anything
+  is left in it.
+
+Verified against the Claude Code hooks reference for 2.1.263, and worth
+knowing before editing the declarations:
+
+- Event names are exact. `PreToolUse` takes a `matcher`; `PreCompact` has no
+  matcher support, so its group carries only `hooks`.
+- A handler with no `args` is shell form: the `command` string is passed to
+  `sh -c`. `$CLAUDE_PROJECT_DIR` resolves the project root, so a hook works
+  whatever the working directory is when it fires.
+- **Invoke a shipped script through `sh`, not by bare path.** A hook must not
+  depend on a mode bit surviving installation.
+
+Extraction restores the execute bit the archive recorded, normalized to
+`0755`; an archive does not get to choose arbitrary modes. Before that,
+`fs.writeFile` left every extracted file at the default mode, which made a
+shipped hook script unrunnable by bare path.
 
 ### Knowledge Consumer Adapters
 

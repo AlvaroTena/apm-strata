@@ -13,6 +13,7 @@ import { createMetadata, writeMetadata, readMetadata } from '../core/metadata.js
 import { fetchOfficialReleases, getLatestRelease, fetchReleaseManifest, findBundleAsset } from '../services/releases.js';
 import { downloadAndExtract } from '../services/extractor.js';
 import { selectAssistant } from '../ui/prompts.js';
+import { installApmHooks } from '../services/settings.js';
 import logger from '../ui/logger.js';
 
 /**
@@ -138,6 +139,7 @@ export async function initCommand(options = {}) {
     installedFiles
   });
   await writeMetadata(metadata);
+  await installApmHooks();
 
   // Clear content for final output
   logger.clearAndBanner();
