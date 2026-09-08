@@ -16,7 +16,9 @@
  * - `rulesBlock({ vaultPath, commandPath })`: lines the project must declare.
  * - `emit({ vaultPath, cloneDir, taskLogPath, reference, claims, onProgress })`:
  *   ingests a task log and its claims, resolving to
- *   { pagePath, sourceId, claimIds, changedPaths }.
+ *   { pagePath, sourceId, claimIds, retiredClaimIds, changedPaths }, where
+ *   `retiredClaimIds` are claims the page previously carried and no longer
+ *   makes.
  * - `audit({ vaultPath, cloneDir, asOf, onProgress })`: audits the substrate,
  *   resolving to { asOf, lint, disputed }, where `lint` is a markdown report
  *   and `disputed` is a list of { id, text, assessment, page, reasons }.

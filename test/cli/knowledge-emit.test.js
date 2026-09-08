@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import path from 'path';
-import crypto from 'crypto';
+import crypto, { createHash } from 'crypto';
 
 const run = vi.fn();
 
@@ -125,6 +125,14 @@ function inspectedBundle() {
  */
 let bundleWrites = new Map();
 
+/**
+ * Returns the claim ledger the bundle carries.
+ */
+function claimsFromBundle() {
+  const write = inspectedBundle().writes.find(entry => entry.path.endsWith('claim-ledger.json'));
+  return JSON.parse(write.content).claims;
+}
+
 const REFERENCE = { project: 'demo', stage: 2, task: 7 };
 
 describe('apm knowledge emit', () => {
@@ -163,11 +171,74 @@ describe('apm knowledge emit', () => {
   it('copies the task log into the inbox outside the transaction', async () => {
     await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
 
-    const inboxPath = path.join(VAULT, 'inbox/apm/demo/2-7.md');
-    expect(files.has(inboxPath)).toBe(true);
+    const captured = [...files.keys()].filter(key => key.includes(`inbox${path.sep}apm`));
+    expect(captured).toHaveLength(1);
 
     const bundle = inspectedBundle();
     expect(bundle.writes.some(write => write.path.startsWith('inbox/'))).toBe(false);
+  });
+
+  it('names the capture after its own content hash', async () => {
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+
+    const ledger = JSON.parse(
+      inspectedBundle().writes.find(write => write.path.endsWith('source-ledger.json')).content
+    );
+    const record = Object.values(ledger.sources).find(source => source.review_status === 'active');
+
+    expect(record.origin.locator).toMatch(/^inbox\/apm\/demo\/2-7-[0-9a-f]{12}\.md$/);
+    expect(record.origin.locator).toContain(record.content_sha256.slice(0, 12));
+  });
+
+  it('supersedes the earlier capture when the task log changed', async () => {
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+    const first = JSON.parse(
+      inspectedBundle().writes.find(write => write.path.endsWith('source-ledger.json')).content
+    );
+    const firstId = Object.keys(first.sources)[0];
+
+    // Carry the applied source ledger forward and edit the log.
+    files.set(SOURCE_LEDGER, JSON.stringify(first, null, 2));
+    files.set(TASK_LOG, '# Task\n\n## Claims\n- claim: The first thing holds.\n  evidence: src/a.js:10\n  supersedes: none\n');
+    vi.clearAllMocks();
+    scriptRunner();
+
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+
+    const second = JSON.parse(
+      inspectedBundle().writes.find(write => write.path.endsWith('source-ledger.json')).content
+    );
+    const active = Object.entries(second.sources).filter(([, source]) => source.review_status === 'active');
+
+    expect(Object.keys(second.sources)).toHaveLength(2);
+    expect(active).toHaveLength(1);
+    expect(second.sources[firstId].review_status).toBe('superseded');
+    expect(active[0][1].supersedes).toBe(firstId);
+  });
+
+  it('keeps each recorded hash matching the file that record names', async () => {
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+    const first = JSON.parse(
+      inspectedBundle().writes.find(write => write.path.endsWith('source-ledger.json')).content
+    );
+
+    files.set(SOURCE_LEDGER, JSON.stringify(first, null, 2));
+    files.set(TASK_LOG, '# Task\n\n## Claims\n- claim: Something new.\n  evidence: a\n  supersedes: none\n');
+    vi.clearAllMocks();
+    scriptRunner();
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+
+    const second = JSON.parse(
+      inspectedBundle().writes.find(write => write.path.endsWith('source-ledger.json')).content
+    );
+
+    // This is what the consumer checks unconditionally, and what a single
+    // capture path per task log could not satisfy.
+    for (const source of Object.values(second.sources)) {
+      const onDisk = files.get(path.join(VAULT, source.origin.locator));
+      expect(onDisk).toBeDefined();
+      expect(createHash('sha256').update(onDisk, 'utf8').digest('hex')).toBe(source.content_sha256);
+    }
   });
 
   it('derives the source identity from kind, locator and content hash', async () => {
@@ -216,8 +287,10 @@ describe('apm knowledge emit', () => {
       expect(claim.evidence[0]).toMatchObject({ source_id: sourceId, relation: 'supports' });
       expect(claim.location.path).toBe('wiki/apm/demo/2-7.md');
     }
-    expect(claims[1].supersedes).toBe('clm-old-9');
-    expect(claims[0].supersedes).toBeUndefined();
+
+    const byText = new Map(claims.map(claim => [claim.text, claim]));
+    expect(byText.get('The second thing holds.').supersedes).toBe('clm-old-9');
+    expect(byText.get('The first thing holds.').supersedes).toBeUndefined();
   });
 
   it('gives the page the frontmatter fields the linter requires', async () => {
@@ -234,6 +307,137 @@ describe('apm knowledge emit', () => {
 
     const index = inspectedBundle().writes.find(write => write.path === 'wiki/index.md').content;
     expect(index).toContain('[[wiki/apm/demo/2-7|demo 2.7]]');
+  });
+
+  it('derives claim ids from the claim text, not its position', async () => {
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+    const first = claimsFromBundle();
+
+    // Same two claims, opposite order.
+    seedVault({
+      taskLog:
+        '# Task\n\n## Claims\n' +
+        '- claim: The second thing holds.\n  evidence: test suite\n  supersedes: clm-old-9\n' +
+        '- claim: The first thing holds.\n  evidence: src/a.js:10\n  supersedes: none\n'
+    });
+    vi.clearAllMocks();
+    scriptRunner();
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+    const reordered = claimsFromBundle();
+
+    expect(Object.keys(reordered).sort()).toEqual(Object.keys(first).sort());
+    for (const [id, claim] of Object.entries(first)) {
+      expect(reordered[id].text).toBe(claim.text);
+    }
+  });
+
+  it('keeps a claim id when the claim is only rewrapped', async () => {
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+    const before = Object.keys(claimsFromBundle()).sort();
+
+    seedVault({
+      taskLog:
+        '# Task\n\n## Claims\n' +
+        '- claim: The first    thing holds.\n  evidence: src/a.js:10\n  supersedes: none\n' +
+        '- claim: The second thing holds.\n  evidence: test suite\n  supersedes: clm-old-9\n'
+    });
+    vi.clearAllMocks();
+    scriptRunner();
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+
+    expect(Object.keys(claimsFromBundle()).sort()).toEqual(before);
+  });
+
+  it('changes the id when the claim itself changes', async () => {
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+    const before = Object.keys(claimsFromBundle());
+
+    seedVault({
+      taskLog: '# Task\n\n## Claims\n- claim: Something else entirely.\n  evidence: a\n  supersedes: none\n'
+    });
+    vi.clearAllMocks();
+    scriptRunner();
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+
+    const after = Object.keys(claimsFromBundle()).filter(id => before.includes(id));
+    expect(after).toEqual([]);
+  });
+
+  it('retires a claim the task log no longer makes', async () => {
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+
+    // Carry the applied ledger forward, then drop the second claim.
+    const applied = claimsFromBundle();
+    files.set(
+      CLAIM_LEDGER,
+      JSON.stringify(
+        { schema: 'claude-obsidian.claim-ledger.v1', generated_at: '2026-01-01T00:00:00Z', claims: applied },
+        null,
+        2
+      )
+    );
+    files.set(TASK_LOG, '# Task\n\n## Claims\n- claim: The first thing holds.\n  evidence: src/a.js:10\n  supersedes: none\n');
+    vi.clearAllMocks();
+    scriptRunner();
+
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+
+    const claims = claimsFromBundle();
+    const dropped = Object.values(claims).find(claim => claim.text === 'The second thing holds.');
+    const kept = Object.values(claims).find(claim => claim.text === 'The first thing holds.');
+
+    expect(kept.assessment).toBe('provisional');
+    expect(dropped.assessment).toBe('deprecated');
+    expect(dropped.notes).toMatch(/no longer makes this claim/);
+  });
+
+  it('leaves no active claim pointing at a page that dropped it', async () => {
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+
+    files.set(
+      CLAIM_LEDGER,
+      JSON.stringify(
+        {
+          schema: 'claude-obsidian.claim-ledger.v1',
+          generated_at: '2026-01-01T00:00:00Z',
+          claims: claimsFromBundle()
+        },
+        null,
+        2
+      )
+    );
+    files.set(TASK_LOG, '# Task\n\n## Claims\n- claim: The first thing holds.\n  evidence: src/a.js:10\n  supersedes: none\n');
+    vi.clearAllMocks();
+    scriptRunner();
+
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+
+    const page = inspectedBundle().writes[0].content;
+    const orphaned = Object.values(claimsFromBundle()).filter(
+      claim =>
+        claim.location.path === 'wiki/apm/demo/2-7.md' &&
+        claim.assessment !== 'deprecated' &&
+        !page.includes(claim.text)
+    );
+    expect(orphaned).toEqual([]);
+  });
+
+  it('does not retire a claim that belongs to another page', async () => {
+    const foreign = {
+      text: 'A claim from elsewhere.',
+      risk: 'normal',
+      assessment: 'provisional',
+      confidence: 'medium',
+      location: { path: 'wiki/apm/demo/9-9.md' },
+      evidence: []
+    };
+    const ledger = JSON.parse(files.get(CLAIM_LEDGER));
+    ledger.claims['clm-foreign'] = foreign;
+    files.set(CLAIM_LEDGER, JSON.stringify(ledger, null, 2));
+
+    await knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE });
+
+    expect(claimsFromBundle()['clm-foreign'].assessment).toBe('provisional');
   });
 
   it('reads the approval hash from approval_sha256, not approved_plan_sha256', async () => {
@@ -275,6 +479,67 @@ describe('apm knowledge emit', () => {
     await expect(
       knowledgeEmitCommand({ taskLog: path.join(WORKSPACE, 'missing.md'), ...REFERENCE })
     ).rejects.toThrow(/file not found/);
+  });
+
+  it('refuses a vault whose ledgers are missing', async () => {
+    files.delete(SOURCE_LEDGER);
+
+    await expect(knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE })).rejects.toThrow(
+      /source-ledger\.json is missing; run "apm knowledge init" first/
+    );
+  });
+
+  it('refuses a ledger that is not readable JSON', async () => {
+    files.set(CLAIM_LEDGER, '{ this is not json');
+
+    await expect(knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE })).rejects.toThrow(
+      /claim-ledger\.json is not a readable ledger/
+    );
+  });
+
+  it('refuses a vault with no index or log page', async () => {
+    files.delete(path.join(VAULT, 'wiki/index.md'));
+
+    await expect(knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE })).rejects.toThrow(
+      /missing wiki\/index\.md or wiki\/log\.md/
+    );
+  });
+
+  it('stops before applying when the inspection reports no hash', async () => {
+    run.mockImplementation(async (command, args) => {
+      if (args.includes('inspect')) return { stdout: JSON.stringify({ valid: true }), stderr: '' };
+      return { stdout: JSON.stringify({ changed_paths: [] }), stderr: '' };
+    });
+
+    await expect(knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE })).rejects.toThrow(
+      /did not report an approval hash/
+    );
+    expect(run.mock.calls.some(([, args]) => args.includes('apply'))).toBe(false);
+  });
+
+  it('surfaces a rejected transaction as a setup failure', async () => {
+    run.mockImplementation(async (command, args) => {
+      if (args.includes('inspect')) {
+        const error = new Error('exit 75');
+        error.stdout = 'ERR TRANSACTION_CONFLICT: another operation holds the lock';
+        throw error;
+      }
+      return { stdout: '{}', stderr: '' };
+    });
+
+    await expect(knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE })).rejects.toThrow(
+      /setup failed during inspect: ERR TRANSACTION_CONFLICT/
+    );
+  });
+
+  it('removes the bundle file even when the transaction fails', async () => {
+    run.mockImplementation(async (command, args) => {
+      if (args.includes('inspect')) throw new Error('nope');
+      return { stdout: '{}', stderr: '' };
+    });
+
+    await expect(knowledgeEmitCommand({ taskLog: TASK_LOG, ...REFERENCE })).rejects.toThrow();
+    expect([...files.keys()].filter(key => key.includes('.vault-meta'))).toEqual([]);
   });
 });
 
@@ -377,5 +642,41 @@ describe('apm knowledge audit', () => {
     await expect(knowledgeAuditCommand({ out: 'audit.md', asOf: 'yesterday' })).rejects.toThrow(
       /--as-of must be an ISO date/
     );
+  });
+
+  it('refuses to audit a vault that does not exist', async () => {
+    files.delete(path.join(VAULT, '.claude-obsidian.json'));
+
+    await expect(knowledgeAuditCommand({ out: 'audit.md' })).rejects.toThrow(
+      /Run "apm knowledge init" first/
+    );
+  });
+
+  it('surfaces a failing linter instead of writing a partial report', async () => {
+    run.mockImplementation(async () => {
+      const error = new Error('exit 2');
+      error.stderr = 'ERR CONFIG_ERROR: unreadable allowlist';
+      throw error;
+    });
+
+    await expect(knowledgeAuditCommand({ out: 'audit.md' })).rejects.toThrow(
+      /setup failed during lint: ERR CONFIG_ERROR/
+    );
+    expect(files.has(path.join(WORKSPACE, 'audit.md'))).toBe(false);
+  });
+
+  it('skips a contradiction whose source is not in the ledger', async () => {
+    const claims = JSON.parse(files.get(CLAIM_LEDGER));
+    claims.claims['clm-dangling'] = {
+      text: 'Points at a source that is gone.',
+      assessment: 'provisional',
+      location: { path: 'wiki/a.md' },
+      evidence: [{ source_id: 'src-missing', relation: 'contradicts' }]
+    };
+    files.set(CLAIM_LEDGER, JSON.stringify(claims, null, 2));
+
+    await knowledgeAuditCommand({ out: 'audit.md' });
+
+    expect(files.get(path.join(WORKSPACE, 'audit.md'))).toContain('## Disputed Claims\n\nNone.');
   });
 });

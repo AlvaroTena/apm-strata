@@ -9,7 +9,7 @@
  * @module src/index
  */
 
-import { Command } from 'commander';
+import { Command, Help } from 'commander';
 import { initCommand } from './commands/init.js';
 import { customCommand } from './commands/custom.js';
 import { updateCommand } from './commands/update.js';
@@ -19,7 +19,7 @@ import { removeCommand } from './commands/remove.js';
 import { statusCommand } from './commands/status.js';
 import { knowledgeInitCommand, knowledgeEmitCommand, knowledgeAuditCommand } from './commands/knowledge.js';
 import { deltaValidateCommand } from './commands/delta.js';
-import { CLI_VERSION, OFFICIAL_REPO_URL } from './core/constants.js';
+import { CLI_VERSION, OFFICIAL_REPO_URL, OFFICIAL_REPO_SPEC } from './core/constants.js';
 import { CLIError } from './core/errors.js';
 import logger from './ui/logger.js';
 
@@ -71,6 +71,9 @@ function displayHelp() {
   console.log(`  ${chalk.bold('--clear')}                   Clear all saved custom repositories`);
   console.log('');
   console.log(chalk.cyan.bold('Knowledge:'));
+  console.log(`  ${chalk.bold('knowledge init')}            Install the consumer and initialize its vault`);
+  console.log(`  ${chalk.bold('knowledge emit')}            Ingest a task log into the vault`);
+  console.log(`  ${chalk.bold('knowledge audit')}           Audit the substrate and write a report`);
   console.log(`  ${chalk.bold('--consumer <id>')}           Knowledge consumer ${chalk.dim('(default: claude-obsidian)')}`);
   console.log(`  ${chalk.bold('--vault <path>')}            Vault path ${chalk.dim('(default: ./wiki)')}`);
   console.log(`  ${chalk.bold('--clone-dir <path>')}        Where the consumer product lives`);
@@ -78,6 +81,9 @@ function displayHelp() {
   console.log(`  ${chalk.bold('--project/--stage/--task')}  Reference the emitted page carries ${chalk.dim('(knowledge emit)')}`);
   console.log(`  ${chalk.bold('--as-of <date>')}            Provenance freshness date ${chalk.dim('(knowledge audit)')}`);
   console.log(`  ${chalk.bold('--out <path>')}              Where to write the audit report ${chalk.dim('(knowledge audit)')}`);
+  console.log('');
+  console.log(chalk.cyan.bold('Deltas:'));
+  console.log(`  ${chalk.bold('delta validate <path>')}     Check a delta against the spec it changes`);
   console.log('');
   console.log(chalk.cyan.bold('Archive:'));
   console.log(`  ${chalk.bold('-l, --list')}                List archived sessions`);
@@ -89,13 +95,14 @@ function displayHelp() {
   console.log(`  ${chalk.bold('-h, --help')}                Show help`);
   console.log('');
   console.log(chalk.cyan.bold('Versioning:'));
-  console.log(`  ${chalk.bold('agentic-pm CLI')} (v${CLI_VERSION}):`);
+  console.log(`  ${chalk.bold('apm CLI')} (v${CLI_VERSION}):`);
   console.log(`            - Follows SemVer: ${chalk.blue.underline('https://semver.org/')}`);
-  console.log(`            - Update with: ${chalk.yellow('npm update -g agentic-pm')}`);
+  console.log(`            - Installed from git, not from npm`);
+  console.log(`            - Update with: ${chalk.yellow(`npm install -g ${OFFICIAL_REPO_SPEC}`)}`);
   console.log('');
   console.log(`  ${chalk.bold('APM Releases')} (v1.x.x):`);
   console.log(`            - Follows SemVer: ${chalk.blue.underline('https://semver.org/')}`);
-  console.log(`            - Compatible with v1.x.x agentic-pm CLI`);
+  console.log(`            - Compatible with v1.x.x of this CLI`);
   console.log(`            - Update via: ${chalk.yellow('apm update')}`);
   console.log('');
   console.log(chalk.gray('Learn more:') + ' ' + chalk.blue.underline(OFFICIAL_REPO_URL));
@@ -313,6 +320,27 @@ delta
       handleError(err);
     }
   });
+
+/**
+ * Restores Commander's own help formatter on a command.
+ *
+ * The custom formatHelp on the program is inherited by every subcommand, which
+ * made `apm init --help` print the global help instead of its own. The
+ * prototype method has to be called directly: `helper.formatHelp` is the
+ * override itself, so going through it recurses.
+ *
+ * @param {Object} command - Command to restore.
+ */
+function restoreDefaultHelp(command) {
+  command.configureHelp({
+    formatHelp: (cmd, helper) => Help.prototype.formatHelp.call(helper, cmd, helper)
+  });
+}
+
+for (const command of program.commands) {
+  restoreDefaultHelp(command);
+  for (const subcommand of command.commands) restoreDefaultHelp(subcommand);
+}
 
 /**
  * Handles CLI errors and exits the process.

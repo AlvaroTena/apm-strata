@@ -221,6 +221,9 @@ export async function knowledgeEmitCommand(options = {}) {
   for (const id of result.claimIds) {
     logger.info(`${id} (provisional)`, { indent: true });
   }
+  for (const id of result.retiredClaimIds ?? []) {
+    logger.warn(`${id} retired (deprecated): no longer claimed`, { indent: true });
+  }
 
   // 6. Point at the source record the claims hang from
   logger.info(`Source recorded as ${result.sourceId}`);

@@ -219,4 +219,47 @@ describe('apm knowledge init', () => {
       /Unknown knowledge consumer 'nope'/
     );
   });
+
+  it('refuses native Windows and points at WSL', async () => {
+    const { checkPlatform } = await import('../../src/services/knowledge/claude-obsidian.js');
+    expect(() => checkPlatform('win32')).toThrow(/Run this command inside WSL/);
+    expect(() => checkPlatform('linux')).not.toThrow();
+    expect(() => checkPlatform('darwin')).not.toThrow();
+  });
+
+  it('reports the step that failed when cloning fails', async () => {
+    run.mockImplementation(async (command, args) => {
+      if (command === 'python3' && args[0] === '--version') {
+        return { stdout: 'Python 3.12.1\n', stderr: '' };
+      }
+      const error = new Error('exit 128');
+      error.stderr = 'fatal: repository not found';
+      throw error;
+    });
+
+    await expect(knowledgeInitCommand()).rejects.toThrow(
+      /setup failed during clone: fatal: repository not found/
+    );
+  });
+
+  it('stops before applying when the review step reports no hash', async () => {
+    run.mockImplementation(async (command, args) => {
+      if (command === 'git') return { stdout: '', stderr: '' };
+      if (args[0] === '--version') return { stdout: 'Python 3.12.1\n', stderr: '' };
+      return { stdout: JSON.stringify({ changed_paths: [] }), stderr: '' };
+    });
+
+    await expect(knowledgeInitCommand()).rejects.toThrow(/did not report an approval hash/);
+    expect(run.mock.calls.some(([, args]) => args.includes('--apply'))).toBe(false);
+  });
+
+  it('reports unparseable output instead of passing it on', async () => {
+    run.mockImplementation(async (command, args) => {
+      if (command === 'git') return { stdout: '', stderr: '' };
+      if (args[0] === '--version') return { stdout: 'Python 3.12.1\n', stderr: '' };
+      return { stdout: 'Traceback (most recent call last):\n  ...\n', stderr: '' };
+    });
+
+    await expect(knowledgeInitCommand()).rejects.toThrow(/expected JSON output, got: Traceback/);
+  });
 });
