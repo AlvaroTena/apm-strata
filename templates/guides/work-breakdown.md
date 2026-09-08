@@ -11,8 +11,9 @@ This guide defines the process for Work Breakdown, which transforms gathered con
 - *Spec:* Design decisions and constraints that define what is being built. Free-form structure determined by project needs.
 - *Plan:* Stage and Task breakdown with Worker assignments, validation criteria, dependency chains, and Dependency Graph.
 - *`{RULES_FILE}`:* Universal execution-level Rules applied during Task execution.
+- *Requirement quality checklists:* One per approval gate, at `.apm/checklists/spec.md` and `.apm/checklists/plan.md`. Reviewer-owned - the User marks them, you do not.
 
-All context gathered during Context Gathering must be captured across these three artifacts. If you omit gathered context from all three, justify why it is not needed for execution - the Manager and Workers operate from these documents alone. How context maps to each document is governed by §2.1 Workflow Context. Decomposition granularity adapts to project size and complexity - smaller projects warrant lighter breakdown, larger projects may need more detail.
+All context gathered during Context Gathering must be captured across the three planning documents. If you omit gathered context from all three, justify why it is not needed for execution - the Manager and Workers operate from these documents alone. How context maps to each document is governed by §2.1 Workflow Context. Decomposition granularity adapts to project size and complexity - smaller projects warrant lighter breakdown, larger projects may need more detail.
 
 ---
 
@@ -88,7 +89,7 @@ The Plan defines how work is organized - Stages, Tasks, Worker assignments, depe
 
 ## 3. Work Breakdown Procedure
 
-Three sequential documents (Spec, Plan, Rules), each with its own analysis, file write, and User approval gate. Complete each and wait for User approval before starting the next. Each document follows a single pass: present your analysis visibly in chat, read the target artifact file, then write. The analysis structures your reasoning for the User, the read transitions to writing mode, and the write produces the artifact.
+Three sequential documents (Spec, Plan, Rules), each with its own analysis, file write, and User approval gate. The Spec and Plan gates each carry a requirement quality checklist the User marks, and the Plan gate is preceded by the size guard. Complete each and wait for User approval before starting the next. Each document follows a single pass: present your analysis visibly in chat, read the target artifact file, then write. The analysis structures your reasoning for the User, the read transitions to writing mode, and the write produces the artifact.
 
 Present analysis visibly in chat for the User to review per `{SKILL_PATH:apm-communication}` §2.2 Visible Reasoning. At each approval gate, describe what was written, what comes next if approved, and ask for review.
 
@@ -104,10 +105,11 @@ Present reasoning under the header **Spec Analysis:** addressing the aspects bel
    - *Structure rationale:* how to organize decisions by project concerns so the Manager can extract relevant content.
    - *Workspace.* From the workspace assessment during Context Gathering, document the project environment: directory structure, working repositories, reference repositories, authoritative document locations, existing `{RULES_FILE}` content that was found.
 3. Read `.apm/spec.md`, then write the full Spec per §4.1 Spec Format. Set `title` to the project name, `modified` to "Spec creation by the Planner.", and fill `## Overview` with 3-5 sentences (project type, core problem, essential scope, success criteria). Let content structure follow the decisions identified.
-4. Pause for User review:
+4. Write `.apm/checklists/spec.md` per §4.4 Requirement Quality Checklist Format. Every item is a question about the quality of what the Spec says, never about the implementation it describes, and every checkbox is left unmarked.
+5. Pause for User review:
    - State the Spec is complete and the artifact is created.
-   - Ask User to review for accuracy.
-   - If modifications needed, apply and repeat step 4.
+   - Ask User to review for accuracy, and to mark the checklist items in `.apm/checklists/spec.md` as part of approving the Spec. Marking them is the User's, not yours.
+   - If modifications needed, apply and repeat step 5.
    - If approved, proceed to §3.2 Plan Analysis.
 
 ### 3.2 Plan Analysis
@@ -133,10 +135,15 @@ Present reasoning under the header **Plan Analysis:** with sub-headers **Domain 
    - *Dependency Analysis.* After all Stages are analyzed, verify all cross-agent dependencies are correctly identified. Cross-check agent assignments - if a dependency's producer differs from the consumer's agent, it is a cross-agent dependency. Reason through the dependency audit (list, classify, flag misclassified) and cross-agent chains (provider, consumer, agents, required deliverable). Fix any misclassified dependencies. Describe dependencies by their relationship - not by graph rendering properties. Graph formatting is applied during the write step.
    - *Pre-write checks.* Verify the analysis is complete: every Task was analyzed with all aspects covered (Worker assignment, scope, guidance, validation, dependencies, steps), workload is reasonably distributed across Workers, all cross-agent dependencies are identified, and notes for the Manager are ready per §2.1 Workflow Context. Correct issues before proceeding.
 2. Read `.apm/plan.md`, then write the full Plan per §4.2 Plan Format. Set `title` to the project name (same as Spec) and `modified` to "Plan creation by the Planner." Enrich Task details from reasoning. Ensure every cross-agent dependency is bolded at write time. Include the Dependency Graph in the Plan header.
-3. Pause for User review:
+3. Apply the size guard. Count the independent deliverables the Plan produces - the ones that do not depend on each other and could be delivered separately:
+   - When the count reaches two or more, propose narrowing the objective to one of them and moving the rest to the long-horizon backlog, carrying the evidence that led you to count them as separate deliverables.
+   - This is not a gate. The User can keep the full scope, and the Plan then carries a note recording the split you proposed and the reason it was rejected per §4.2 Plan Format.
+   - An objective-bounded session only holds when what does not fit has somewhere to go. Without that, either the Plan absorbs the overflow and the session grows without a boundary, or the work is lost.
+4. Write `.apm/checklists/plan.md` per §4.4 Requirement Quality Checklist Format. Every item is a question about the quality of what the Plan says, never about the implementation it describes, and every checkbox is left unmarked.
+5. Pause for User review:
    - State the Plan is complete and the artifact is created. Present a summary to the User: Worker count, Stage count with names and Task counts, total Tasks, dispatch patterns.
-   - Ask User to review the Plan.
-   - If modifications needed, apply and repeat step 3.
+   - Ask User to review the Plan, and to mark the checklist items in `.apm/checklists/plan.md` as part of approving it. Marking them is the User's, not yours.
+   - If modifications needed, apply and repeat step 5.
    - If approved, proceed to §3.3 Rules Analysis.
 
 ### 3.3 Rules Analysis
@@ -151,16 +158,15 @@ Perform the following actions per §2.5 `{RULES_FILE}` Standards:
    - **Classification:** Separate patterns that apply to all or most Tasks from narrowly Task-specific ones per §2.5 `{RULES_FILE}` Standards. Most projects produce few genuinely universal rules - project-specific constraints and output specifications belong in the Spec or Task guidance even when they apply to multiple Workers.
    - **Existing standards:** what `{RULES_FILE}` already contains; reference rather than duplicate.
 2. Determine the target file. Ask the User whether the Rules should be version controlled - if yes, the target file is `CLAUDE.md`; if not, it is `{RULES_FILE}`. When the target is `{RULES_FILE}`, recommend adding it to the project `.gitignore` unless it is already listed there.
-3. Read `{RULES_FILE}` and `CLAUDE.md` (or confirm they do not exist), then write the APM_RULES block per §4.3 APM_RULES Block:
-   - If both files contain a block, replace the one in the target file and delete the other, leaving a single block.
-   - If one file contains a block, replace that block in full - the `APM_RULES {` line through the `} //APM_RULES` marker - in the file where it was found.
-   - If neither file contains a block, write the new block to the target file, creating the file when it does not exist.
-   - Preserve all content outside the block unchanged in every case.
+3. Read `{RULES_FILE}` and `CLAUDE.md` (or confirm they do not exist), then write the APM_RULES block to the target file per §4.3 APM_RULES Block. The target file ends with exactly one block and the other file ends with none:
+   - If the target file already contains a block, replace it in full - the `APM_RULES {` line through the `} //APM_RULES` marker. Otherwise add the block, creating the target file when it does not exist.
+   - If the other file contains a block, delete that block from it. The block moves to the file the User chose rather than staying where it was found.
+   - Preserve all content outside the block unchanged in both files.
 4. Pause for User review:
-   - State Rules are complete and name the file that was written. When an existing block was replaced, state that it was replaced and in which file.
+   - State Rules are complete and name the file that was written. When a block was replaced in place, state that. When a block was moved, name the file it came from and the file it went to.
    - Ask User to review that file for accuracy.
    - If modifications needed, apply and repeat step 4.
-   - If approved, state Work Breakdown is complete and all planning documents are created. Proceed to `{SKILL_PATH:apm.plan}` §4 Planning Phase Completion.
+   - If approved, state Work Breakdown is complete and all planning documents are created. Proceed to `{SKILL_PATH:apm.plan}` §5 Planning Phase Completion.
 
 ---
 
@@ -201,6 +207,7 @@ modified: <last modification note>
 Below the frontmatter, the document starts with `# APM Plan` followed by the Plan header: `## Workers` (table with `| Worker | Domain | Description |`), `## Stages` (table with `| Stage | Name | Tasks | Agents |`), and `## Dependency Graph` (mermaid diagram per **Dependency Graph Format** below). A single horizontal rule separates the header from Stage sections below. No other horizontal rules in the Plan - `##` and `###` headings provide sufficient visual separation between Stages and Tasks.
 
 - *Planner notes:* Placed immediately after the horizontal rule separator, before Stage sections. Use the format `> **Notes:** <prose or unordered list>`. These cover what you observed about the work structure per §2.1 Workflow Context - why boundaries exist, natural groupings or sequencing patterns, critical path, convergence points, and Stage boundaries where holistic verification may be valuable.
+- *Rejected split note:* When the size guard proposed narrowing the objective and the User kept the full scope, record it in the Planner notes - the split that was proposed, which deliverables it would have moved to the backlog, and the reason the User gave for keeping them. The guard does not block the Plan, so this note is the only trace that the choice was made deliberately.
 
 **Stage Format.** Each Stage in the Plan:
 - *Header:* `## Stage N: [Name]`
@@ -276,8 +283,32 @@ APM_RULES {
 **Write semantics.** The block is a region that gets replaced, never a region that accumulates:
 - The block spans the `APM_RULES {` line through the `} //APM_RULES` marker. Everything outside it is User-managed and is never altered.
 - Both `{RULES_FILE}` and `CLAUDE.md` are searched for an existing block. A session that follows an archived one leaves its block behind, and a Rules file that changed name between sessions leaves that block in the other file - writing without searching both leaves two blocks in place and the wrong one takes effect.
-- An existing block is replaced in full. A block is added only when neither file has one.
-- Replacing a block is always reported to the User, naming the file it was replaced in. Replacing in silence costs the User the ability to notice that standards they relied on are gone.
+- One block survives, and it lives in the file the User chose. A block found in the other file is deleted rather than left where it was, so the answer to the version control question is what decides where Rules live - a question whose answer changes nothing is worse than no question.
+- Replacing or moving a block is always reported to the User, naming the files involved. Doing either in silence costs the User the ability to notice that standards they relied on are gone.
+
+### 4.4 Requirement Quality Checklist Format
+
+**Location:** `.apm/checklists/spec.md` and `.apm/checklists/plan.md`
+
+Each checklist reviews the quality of what its document says, not the implementation the document describes. It is written when that document is presented for approval per §3.1 Spec Analysis and §3.2 Plan Analysis.
+
+**Markdown Body Template:**
+
+```markdown
+# <Document> Quality Checklist
+
+**Reviewed document:** `.apm/<document>.md`
+**Marker semantics:** `[x]` means the reviewer confirms this requirement quality criterion is satisfied. It does not mean any implementation work is done.
+
+- [ ] <Question about the quality of what the document says?> [<Dimension>, <Section>]
+- [ ] <Question about the quality of what the document says?> [<Dimension>, <Section>]
+```
+
+**Content rules:** Between five and eight items. Each item is a single question ending in `?` about the document's requirement quality - whether requirements are unambiguous, measurable, complete, consistent, or traceable - never a question about implementation progress. `<Dimension>` names the quality dimension the item tests: Completeness, Clarity, Consistency, Measurability, Traceability, or Coverage. `<Section>` names the section of the reviewed document the item points at, so a failing item has an address instead of sending the reviewer through the whole file. An item written as a statement rather than a question cannot be answered yes or no and is not an item.
+
+**Marker ownership:** You never mark a checkbox, not even one you are confident about. Write every item as `- [ ]` and leave it unmarked. The User marks them as part of approving the document, and that act is what the marks mean - an agent marking its own work removes the only signal the checklist carries.
+
+**Parseability:** A dispatch gate blocks work assignment while any checkbox is unmarked, and it reads these files mechanically. Every checkbox begins its line as `- [ ]` with no leading whitespace and nothing before it on the line.
 
 ---
 

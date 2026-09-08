@@ -19,7 +19,7 @@ All necessary guides are available in `{GUIDES_DIR}/`. **Read every referenced d
 Read the following skill:
 - `{SKILL_PATH:apm-communication}` - agent communication standards
 
-You will create or update `{RULES_FILE}` at workspace root with Rules during Work Breakdown.
+You will create or update `{RULES_FILE}` at workspace root with Rules during Work Breakdown, and write the requirement quality checklists under `.apm/checklists/`.
 
 **Initiation context from User:** {ARGS}
 
@@ -45,7 +45,7 @@ Perform the following actions:
 
 **Prerequisite:** Workspace Discovery and Authority must be complete.
 
-Read `{GUIDE_PATH:context-gathering}` and any authoritative documents from §2 together. Execute the guide through completion. The guide controls deep codebase exploration, three iterative question rounds, gap assessment for each round, the understanding summary, and the procedure checkpoint. When complete, proceed to §4 Work Breakdown Procedure.
+Read `{GUIDE_PATH:context-gathering}` and any authoritative documents from §2 together. Execute the guide through completion. The guide controls deep codebase exploration, a bounded ambiguity resolution pass that closes at most five open decisions before any round begins, three iterative question rounds, gap assessment for each round, the understanding summary, and the procedure checkpoint. When complete, proceed to §4 Work Breakdown Procedure.
 
 ---
 
@@ -53,7 +53,7 @@ Read `{GUIDE_PATH:context-gathering}` and any authoritative documents from §2 t
 
 **Prerequisite:** Context Gathering Procedure must be complete with User-approved understanding summary.
 
-The `.apm/` directory contains fresh templates created by `apm init` - Spec, Plan, Tracker, and Memory Index with placeholder content. These are your scaffolds to populate during this procedure - the Work Breakdown guide reads each one before writing to it. Read `{GUIDE_PATH:work-breakdown}` and execute the guide through completion. The guide controls Spec, Plan, and Rules analysis and creation, each with User approval checkpoints. When complete, proceed to §5 Planning Phase Completion.
+The `.apm/` directory contains fresh templates created by `apm init` - Spec, Plan, Tracker, and Memory Index with placeholder content. These are your scaffolds to populate during this procedure - the Work Breakdown guide reads each one before writing to it. Read `{GUIDE_PATH:work-breakdown}` and execute the guide through completion. The guide controls Spec, Plan, and Rules analysis and creation, each with User approval checkpoints. The Spec and Plan checkpoints each generate a requirement quality checklist under `.apm/checklists/` that the User marks and you never mark, and the Plan checkpoint is preceded by a size guard that proposes narrowing the objective when the Plan carries more than one independent deliverable. When complete, proceed to §5 Planning Phase Completion.
 
 ---
 

@@ -76,7 +76,7 @@ When User responses or existing material reference codebase elements, or signal 
 
 ## 3. Context Gathering Procedure
 
-Archive and workspace context setup (building on initiation), three progressive question rounds with iterative follow-ups until each round's focus areas are sufficiently covered, and a finalization with a consolidated understanding summary for User approval. Complete each step before proceeding to the next. Present your work as natural analytical discussion - do not reference guide sections, procedure names, or steps in User-facing output.
+Archive and workspace context setup (building on initiation), a bounded ambiguity resolution pass, three progressive question rounds with iterative follow-ups until each round's focus areas are sufficiently covered, and a finalization with a consolidated understanding summary for User approval. Complete each step before proceeding to the next. Present your work as natural analytical discussion - do not reference guide sections, procedure names, or steps in User-facing output.
 
 ### 3.1 Pre-Round Context
 
@@ -90,7 +90,30 @@ Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file
 
 Present what was found as the opening of the first interaction - the workspace summary and Round 1 questions are delivered together. Use findings to skip redundant questions and focus rounds on what is not yet understood.
 
-### 3.2 Round Iteration
+### 3.2 Ambiguity Resolution
+
+Runs once per objective, after exploration and before the question rounds. The rounds that follow are unchanged - this precedes them so they spend their questions on what is still open rather than on decisions that could have been closed here.
+
+Perform the following actions:
+1. Build a coverage map over the taxonomy below, marking each category `Clear`, `Partial`, or `Missing`. The map is working material - it reaches the User only through the closing table.
+2. Raise a candidate question for each category marked `Partial` or `Missing`. Discard any candidate whose answer would not materially change execution or validation.
+3. Rank the surviving candidates by impact multiplied by uncertainty and keep at most five. Five is the ceiling for the whole objective, not per category.
+4. Ask one question at a time and do not reveal the queue behind it. Each question is answerable either by choosing among two to five mutually exclusive options or by an answer of five words or fewer, and each carries an explicit recommendation together with the reason for it.
+5. Integrate each answer as it arrives, into the area of your working understanding it affects, so the next question is asked against updated ground. When a clarification invalidates something already concluded, replace that conclusion rather than recording both - leave no obsolete contradictory text behind, in the working understanding or in what you later present.
+6. Close with a coverage table per §4.1 Coverage Table Format.
+
+**Default taxonomy.** Seven categories, used unless the project declares its own:
+- *Functional scope:* what the deliverable does, what it explicitly does not do, and who it serves.
+- *Data and state:* entities and their relationships, identity and uniqueness rules, lifecycle and state transitions, volume assumptions.
+- *Technical constraints:* language, storage, hosting, versions, and the tradeoffs already accepted or ruled out.
+- *Validation and acceptance:* how each requirement is verified and where the pass boundary sits.
+- *External dependencies:* services, APIs, and data exchange formats, with their failure modes.
+- *Non-code deliverables:* documentation, migrations, fixtures, configuration, and anything else shipped alongside the code.
+- *Operation and deployment:* how the deliverable is run, released, observed, and recovered.
+
+A project that needs different categories declares them in the APM_RULES block of `{RULES_FILE}`. When the block declares a taxonomy, use it in place of the seven above.
+
+### 3.3 Round Iteration
 
 These rules apply across all three question rounds.
 
@@ -106,7 +129,7 @@ Combine related questions naturally in conversation. Track what has been answere
 
 **Validation criteria gathering:** Capture success states and criteria for each requirement. If the User does not specify how a requirement will be validated, propose concrete measures and ask for their guidance. Integrate validation gathering into Rounds 2 and 3 follow-ups.
 
-### 3.3 Question Round 1: Existing Materials and Vision
+### 3.4 Question Round 1: Existing Materials and Vision
 
 **Focus areas:** Project type and deliverables, problem and purpose, essential features and scope, required skills and expertise, existing documentation and materials, current plan or vision, previous work and codebase context.
 
@@ -123,7 +146,7 @@ Combine related questions naturally in conversation. Track what has been answere
 
 **Round completion:** Present a round completion summary per §2.4 Round Advancement. You must have sufficient understanding of project foundation, problem and success criteria, essential scope, skills and expertise, existing context, and User vision.
 
-### 3.4 Question Round 2: Technical Requirements
+### 3.5 Question Round 2: Technical Requirements
 
 **Focus areas:** Design decisions and constraints, work structure and dependencies, technical and resource requirements, complexity and risk assessment, validation criteria.
 
@@ -156,7 +179,7 @@ Combine related questions naturally in conversation. Track what has been answere
 
 **Round completion:** Present a round completion summary per §2.4 Round Advancement. You must have sufficient understanding of design decisions and constraints, work structure and dependencies, technical requirements, complexity and risk factors, and validation criteria for core requirements.
 
-### 3.5 Question Round 3: Implementation Approach and Quality
+### 3.6 Question Round 3: Implementation Approach and Quality
 
 **Focus areas:** Technical constraints and preferences, workflow preferences, quality standards, project-level coordination and approval requirements (external reviews or validation, stakeholder sign-offs, approval gates), domain organization, design decisions and constraints.
 
@@ -187,12 +210,12 @@ Combine related questions naturally in conversation. Track what has been answere
 
 **Round completion:** Present a round completion summary per §2.4 Round Advancement. You must have sufficient understanding of technical constraints, access and coordination needs, workflow preferences, quality and validation standards, domain organization, documentation expectations, and design decisions with their rationale and constraints.
 
-### 3.6 Finalize Understanding
+### 3.7 Finalize Understanding
 
 After completing the three question rounds, present gathered context for User review.
 
 Perform the following actions:
-1. Assess gathered context: what was resolved through exploration, what through questions, and what genuinely remains unresolved for implementation. Present an understanding summary consolidating all gathered context per §4.1 Understanding Summary Format.
+1. Assess gathered context: what was resolved through exploration, what through questions, and what genuinely remains unresolved for implementation. Present an understanding summary consolidating all gathered context per §4.2 Understanding Summary Format.
 2. Pause for User review. Present a checkpoint:
    - State that all question rounds are complete and understanding is presented.
    - Ask the User to review carefully before planning document generation.
@@ -205,9 +228,26 @@ Perform the following actions:
 
 ## 4. Structural Specifications
 
-### 4.1 Understanding Summary Format
+### 4.1 Coverage Table Format
 
-The understanding summary is presented per §3.6 Finalize Understanding for User review. It consolidates everything gathered across the three question rounds into a coherent picture of the project.
+The coverage table closes Ambiguity Resolution per §3.2 Ambiguity Resolution. It is presented in chat, one row per taxonomy category, and it is what makes the questioning auditable rather than a matter of trust.
+
+**Structure:**
+
+```markdown
+| Category | Status | Note |
+| -------- | ------ | ---- |
+| <category name> | Resolved | <the clarification that closed it> |
+| <category name> | Deferred | <why it was not asked, and where it is handled instead> |
+| <category name> | Clear | <what already covered it> |
+| <category name> | Outstanding | <what remains open and why the impact is low> |
+```
+
+**Status values:** `Resolved` for a category that was `Partial` or `Missing` and was addressed. `Deferred` for one left unasked because the five-question ceiling was reached or because it belongs in Work Breakdown. `Clear` for one that needed nothing. `Outstanding` for one still `Partial` or `Missing` at low impact. Every category appears exactly once. When any row is `Deferred` or `Outstanding`, say so explicitly rather than letting the table speak for itself.
+
+### 4.2 Understanding Summary Format
+
+The understanding summary is presented per §3.7 Finalize Understanding for User review. It consolidates everything gathered across the three question rounds into a coherent picture of the project.
 
 **Structure:** Use free-form markdown. Choose whatever structure best communicates the project - headings, tables, lists, mermaid diagrams, prose, or any combination. Adapt the format to the project's nature and complexity.
 
