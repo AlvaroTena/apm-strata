@@ -45,7 +45,7 @@ Perform the following actions:
 
 **Prerequisite:** Workspace Discovery and Authority must be complete.
 
-Read `{GUIDE_PATH:context-gathering}` and any authoritative documents from §2 together. Execute the guide through completion. The guide controls deep codebase exploration, a bounded ambiguity resolution pass that closes at most five open decisions before any round begins, three iterative question rounds, gap assessment for each round, the understanding summary, and the procedure checkpoint. When complete, proceed to §4 Work Breakdown Procedure.
+Read `{GUIDE_PATH:context-gathering}` and any authoritative documents from §2 together. Execute the guide through completion. The guide controls deep codebase exploration, a review of the work earlier sessions deferred, knowledge layer discovery, a bounded ambiguity resolution pass that closes at most five open decisions before any round begins, three iterative question rounds, gap assessment for each round, the understanding summary, and the procedure checkpoint. When complete, proceed to §4 Work Breakdown Procedure.
 
 ---
 

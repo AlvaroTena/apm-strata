@@ -19,15 +19,17 @@ This skill summarizes the current APM session and optionally archives it. You ar
    - `.apm/memory/index.md` - Memory notes and Stage summaries
    If working notes or Stage summaries reference specific Task Logs for claims or findings that need verification, read those logs directly. Do not read all Task Logs - comprehensive log review is handled by the subagent in step 3.
 3. {SUBAGENT_GUIDANCE} Prompt it to read all `.apm/` artifacts including Task Logs in `.apm/memory/` and cross-validate against the current codebase. The subagent verifies that deliverables exist, commits are on the expected branches, and key validation results hold. It reports back: per-Stage outcomes with log-level detail, codebase staleness relative to `.apm/` state, and notable findings from execution.
-4. Write `.apm/session-summary.md` per the session summary structure below. The summary is a point-in-time snapshot - state this explicitly.
-5. Present the summary to the User. Ask if there is anything to add, correct, or emphasize before finalizing. If the User provides input, update the summary accordingly.
-6. Ask: "Would you like me to archive this session?" If yes, ask whether the User wants a custom archive name or the default dated name.
+4. When the project declares a `## Knowledge layer` block, run `apm knowledge audit --out .apm/substrate-audit.md` so the substrate report is snapshotted with the session and the next Planner can read it from the archive. When no such block is declared, state that and continue.
+5. Write `.apm/session-summary.md` per the session summary structure below. The summary is a point-in-time snapshot - state this explicitly.
+6. Present the summary to the User. Ask if there is anything to add, correct, or emphasize before finalizing. If the User provides input, update the summary accordingly.
+7. Ask: "Would you like me to archive this session?" If yes, ask whether the User wants a custom archive name or the default dated name.
    - If the User declines, no further action.
-   - If the User approves, continue to step 7.
-7. Run `apm archive --force` or `apm archive --force --name <name>` if a custom name was provided. The CLI snapshots all `.apm/` artifacts (planning documents, Tracker, Memory) into `.apm/archives/<name>/`, writes archival metadata to `metadata.json` inside the archive, then removes the installed files and `.apm/metadata.json` from the workspace root - leaving it clean for a new session while preserving archives.
-8. Read `.apm/archives/index.md`. If it does not exist or is malformed, create it per the archive index format below.
-9. Append an entry for the newly archived session to the index table.
-10. Confirm to the User that archival is complete. To start a new APM session, the User runs `apm init` (or `apm custom`) in the terminal - this is a CLI command, not a skill. The CLI downloads and extracts fresh templates (guides, skills, agents) and scaffolds a new `.apm/` directory with blank planning documents (Spec, Plan, Tracker, Memory Index) and a new `metadata.json` tracking the installation. After init completes, the User starts a new Planner with `{SKILL_NAME:plan}` in their assistant. Archives from previous sessions remain in `.apm/archives/` and are accessible to the new Planner during Context Gathering.
+   - If the User approves, continue to step 8.
+8. Run `apm archive --force` or `apm archive --force --name <name>` if a custom name was provided. The CLI snapshots all `.apm/` artifacts (planning documents, Tracker, Memory) into `.apm/archives/<name>/`, writes archival metadata to `metadata.json` inside the archive, then removes the installed files and `.apm/metadata.json` from the workspace root - leaving it clean for a new session while preserving archives.
+9. Read `.apm/archives/index.md`. If it does not exist or is malformed, create it per the archive index format below.
+10. Append an entry for the newly archived session to the index table.
+11. List the Worker sessions that still exist. Run `claude agents --json` and cross its entries against the `Session` column of the Tracker read earlier, matching on the short id. Present the sessions that are still there and direct the User to delete each one with `claude stop <id>` and then `claude rm <id>`. Each session carries two identifiers: `stop` and `rm` take the short `id`, while the full `sessionId` is only accepted by `--resume`. When the Tracker records no session identifiers, state that and continue.
+12. Confirm to the User that archival is complete. To start a new APM session, the User runs `apm init` (or `apm custom`) in the terminal - this is a CLI command, not a skill. The CLI downloads and extracts fresh templates (guides, skills, agents) and scaffolds a new `.apm/` directory with blank planning documents (Spec, Plan, Tracker, Memory Index) and a new `metadata.json` tracking the installation. After init completes, the User starts a new Planner with `{SKILL_NAME:plan}` in their assistant. Archives from previous sessions remain in `.apm/archives/` and are accessible to the new Planner during Context Gathering.
 
 **Session summary structure:**
 
@@ -58,6 +60,8 @@ outcome: <complete | partial | incomplete>
 - *Codebase State.* Compare the actual codebase against the planning artifacts: which planned deliverables exist as code, which are partial or missing, whether the code evolved past what the Spec and Plan describe, and any gaps between what was planned and what was implemented.
 - *Notable Findings:* Operational lessons and patterns - issues encountered and how they were resolved, self-corrections during execution, recovery events, coordination insights. Draw from Memory notes, working notes, and Task Logs.
 - *Known Issues:* Unresolved problems, open questions, or caveats.
+- *Deferred work.* Every item this session deferred rather than delivered, one per line, each carrying the link to its item in the declared tracker. The next session reads this section directly per `{GUIDE_PATH:context-gathering}` §3.2 Deferred Work Review, so an item recorded without its link cannot be acted on. When nothing was deferred, say so explicitly rather than omitting the section - an absent section is indistinguishable from a forgotten one.
+- *Substrate audit:* State of the knowledge substrate at close - claims in dispute and sources due for review, with the path of the report written before archival. When the project declares no knowledge layer, state that instead.
 - *Snapshot Notice:* "This summary reflects the session state as of `<datetime>`. The codebase may have diverged since this summary was created."
 
 **Archive index format:**
@@ -67,8 +71,8 @@ outcome: <complete | partial | incomplete>
 ```markdown
 # APM Archive Index
 
-| Archive | Date | Scope | Stages | Tasks |
-|---------|------|-------|--------|-------|
+| Archive | Date | Scope | Stages | Tasks | Deferred |
+|---------|------|-------|--------|-------|----------|
 ```
 
 *Field descriptions:*
@@ -77,6 +81,7 @@ outcome: <complete | partial | incomplete>
 - *Scope:* brief project description (from session summary or Spec title).
 - *Stages:* number of completed Stages.
 - *Tasks:* total Tasks.
+- *Deferred:* number of items in the session summary's deferred work section, so a reader can tell from the index which archives still carry unfinished work.
 
 Newest entries go at the top of the table.
 
