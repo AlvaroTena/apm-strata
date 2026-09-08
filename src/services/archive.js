@@ -8,7 +8,34 @@
 
 import fs from 'fs-extra';
 import path from 'path';
-import { ARCHIVES_DIR } from '../core/constants.js';
+import { ARCHIVES_DIR, BACKLOG_FILE } from '../core/constants.js';
+
+/**
+ * Top-level name of the long-horizon backlog inside .apm/.
+ */
+const BACKLOG_ENTRY = path.basename(BACKLOG_FILE);
+
+/**
+ * Entries never copied into an archive snapshot.
+ *
+ * - `archives` would nest every past archive inside the new one.
+ * - The backlog is the list of work deferred out of one objective to be picked
+ *   up later, and the procedure that opens the next session reads it as a
+ *   numbered step. Snapshotting it would bury that list inside one particular
+ *   archive, where the next session's procedure does not look. Do not add it
+ *   back while tidying this list: it is the whole mechanism by which deferred
+ *   work gets read again, and losing it fails silently.
+ */
+const NOT_ARCHIVED = new Set(['archives', BACKLOG_ENTRY]);
+
+/**
+ * Entries never removed from .apm/ after a snapshot.
+ *
+ * `metadata.json` is the installation record and is deleted separately by the
+ * caller when the installation itself goes. The backlog stays for the reason
+ * above: it has to still be there when the session that wrote it is gone.
+ */
+const RETAINED = new Set(['archives', 'metadata.json', BACKLOG_ENTRY]);
 
 /**
  * Generates the next archive directory name for today.
@@ -88,9 +115,12 @@ export async function countArchives(cwd) {
 }
 
 /**
- * Creates an archive by snapshotting everything in .apm/ except archives/.
- * Copies all contents (template artifacts, runtime files, metadata) into
+ * Creates an archive by snapshotting .apm/ apart from what is preserved.
+ * Copies the contents (template artifacts, runtime files, metadata) into
  * the archive directory, then cleans originals from .apm/.
+ *
+ * Past archives and the long-horizon backlog are neither copied nor removed;
+ * see NOT_ARCHIVED and RETAINED.
  *
  * @param {string} cwd - Working directory.
  * @param {Object} [options={}] - Archive options.
@@ -125,11 +155,11 @@ export async function createArchive(cwd, options = {}) {
   }
   trackedTopLevel.add('metadata.json');
 
-  // Copy everything in .apm/ except archives/ into the archive snapshot
+  // Copy .apm/ into the archive snapshot, apart from NOT_ARCHIVED
   const entries = await fs.readdir(apmDir);
   const runtimeEntries = [];
   for (const entry of entries) {
-    if (entry === 'archives') continue;
+    if (NOT_ARCHIVED.has(entry)) continue;
     const src = path.join(apmDir, entry);
     const dest = path.join(archivePath, entry);
     await fs.copy(src, dest);
@@ -148,9 +178,9 @@ export async function createArchive(cwd, options = {}) {
     await fs.writeJson(archivedMetaPath, metadata, { spaces: 2 });
   }
 
-  // Clean originals from .apm/ (keep archives/ and metadata.json)
+  // Clean originals from .apm/, keeping what RETAINED lists
   for (const entry of entries) {
-    if (entry === 'archives' || entry === 'metadata.json') continue;
+    if (RETAINED.has(entry)) continue;
     await fs.remove(path.join(apmDir, entry));
   }
 

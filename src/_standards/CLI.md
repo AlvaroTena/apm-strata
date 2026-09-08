@@ -396,6 +396,33 @@ directory, which is walked. Exits non-zero when any rule is violated.
 5. Fail when any violation was found.
 6. Report success.
 
+### Session Archival
+
+`services/archive.js` snapshots `.apm/` into `.apm/archives/<name>/` and then
+clears the originals. Two lists govern what it leaves alone, and both are
+narrow on purpose.
+
+**Never copied into a snapshot** (`NOT_ARCHIVED`):
+
+| Entry | Why |
+|---|---|
+| `archives` | Would nest every past archive inside the new one. |
+| `backlog.md` | The long-horizon backlog is work deferred out of one objective to be picked up later, and the procedure opening the next session reads it as a numbered step. Snapshotting it buries the list inside one particular archive, where that procedure does not look. |
+
+**Never removed from `.apm/`** (`RETAINED`): the two above, plus
+`metadata.json`, which is the installation record and is deleted separately by
+the caller when the installation itself goes.
+
+The backlog entry is the one that is not self-explanatory, so do not drop it
+while tidying the list. It has to still exist when the session that wrote it
+does not; without it, deferred work is never read again, and nothing reports
+the loss. Tests in `test/cli/archive-preserves-backlog.test.js` fail if the
+entry is removed from either list.
+
+Everything else under `.apm/` is session state and is meant to be archived and
+cleared. A new artifact only belongs on these lists if the next session has to
+read it.
+
 ### Project Settings
 
 Installation declares APM's hooks in the project's `.claude/settings.json`

@@ -146,7 +146,7 @@ async function createMode(force, archiveName) {
     const assistantList = metadata.assistants.join(', ');
     const proceed = await confirmDestructiveAction(
       [
-        `Snapshot all .apm/ artifacts into .apm/archives/${resolvedName}`,
+        `Snapshot .apm/ artifacts into .apm/archives/${resolvedName} (backlog.md is kept in place)`,
         `Delete all APM-installed files for: ${assistantList}`
       ],
       'Archive and clean?'

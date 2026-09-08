@@ -79,6 +79,14 @@ export const METADATA_FILE = '.apm/metadata.json';
 export const ARCHIVES_DIR = '.apm/archives';
 
 /**
+ * Long-horizon backlog path within .apm/.
+ *
+ * Deliberately outlives the session that wrote it: see the preservation list
+ * in src/services/archive.js.
+ */
+export const BACKLOG_FILE = '.apm/backlog.md';
+
+/**
  * Release manifest filename.
  */
 export const RELEASE_MANIFEST = 'apm-release.json';
@@ -96,6 +104,8 @@ export default {
   CONFIG_DIR,
   CONFIG_FILE,
   METADATA_FILE,
+  ARCHIVES_DIR,
+  BACKLOG_FILE,
   RELEASE_MANIFEST,
   GITHUB_API_BASE
 };
