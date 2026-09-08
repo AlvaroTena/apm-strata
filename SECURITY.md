@@ -1,6 +1,6 @@
 # Security Considerations
 
-This document covers security risks when using the `agentic-pm` CLI, particularly with custom repositories. For the full user-facing security guide, see the [Security Guide](https://agentic-project-management.dev/docs/security) on the documentation site.
+This document covers security risks when using the `agentic-pm` CLI, particularly with custom repositories.
 
 ## Custom Repository Risks
 
@@ -8,9 +8,9 @@ When using `apm custom` to install templates from third-party repositories, you 
 
 ### What Custom Repositories Can Do
 
-- **Write files anywhere within the project directory**: Official bundles only contain files within the assistant config directory (e.g., `.claude/commands/`, `.claude/skills/`) and `.apm/`. A malicious bundle could include entries with arbitrary paths like `src/malicious.js` or `package.json`, writing files anywhere within the project root. Path traversal outside the project directory is blocked by the CLI.
+- **Write files anywhere within the project directory**: Official bundles only contain files within `.claude/` (skills, guides, agents and hook scripts) and `.apm/`. A malicious bundle could include entries with arbitrary paths like `src/malicious.js` or `package.json`, writing files anywhere within the project root. Path traversal outside the project directory is blocked by the CLI.
 
-- **Overwrite specific APM files**: Bundles write only the files they contain. A malicious bundle could overwrite existing APM commands or skills with modified versions.
+- **Overwrite specific APM files**: Bundles write only the files they contain. A malicious bundle could overwrite existing APM skills, guides, agents or hook scripts with modified versions.
 
 - **Install malicious agent instructions**: APM templates define how AI assistants behave. Malicious templates could instruct agents to execute harmful commands, exfiltrate data, or modify code in subtle ways when the agent runs.
 
@@ -26,7 +26,7 @@ When using `apm custom` to install templates from third-party repositories, you 
 
 1. **Review the repository before installation**: Check the repository's README, issues, and commit history. Look for signs of active maintenance and community trust.
 
-2. **Inspect bundle contents after installation**: Review the extracted files in your project's `.claude/`, `.github/`, or equivalent directory before using them with an AI assistant.
+2. **Inspect bundle contents after installation**: Review the extracted files under your project's `.claude/` and `.apm/` before running a session against them, and review the hook declarations the CLI merged into `.claude/settings.json`.
 
 3. **Use specific tags**: Instead of relying on "latest", specify a known-good tag with `--tag` to avoid pulling unexpected changes.
 
@@ -46,6 +46,6 @@ When using `apm custom` to install templates from third-party repositories, you 
 
 ## Reporting Security Issues
 
-If you discover a security vulnerability in the `agentic-pm` CLI or official templates, please report it by opening an issue at https://github.com/sdi2200262/agentic-project-management/issues with the "security" label, or contact the maintainers directly.
+If you discover a security vulnerability in the `agentic-pm` CLI or official templates, please report it by opening an issue at https://github.com/AlvaroTena/apm-strata/issues with the "security" label, or contact the maintainer directly.
 
 Do not publicly disclose vulnerabilities until they have been addressed.

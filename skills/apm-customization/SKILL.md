@@ -1,75 +1,111 @@
 ---
 name: apm-customization
-description: Guides an AI agent through customizing APM templates, building releases, and managing a custom APM repository.
+description: Guides an AI agent through customizing apm-strata templates, building the bundle, and releasing a custom APM repository.
 ---
 
 # APM Customization Skill
 
 ## 1. Overview
 
-**Reading Agent:** Any AI assistant working within a forked or templated APM repository
+**Reading Agent:** Any AI assistant working within a fork or template of this repository
 
-This skill guides the customization of APM templates. It assumes the Agent is operating within the APM codebase itself (a fork or template of the official repository) and can explore the repository structure directly.
+This skill orients an agent inside the APM codebase itself so it can find the right file,
+change it without breaking the contracts around it, build, and release.
 
 ### 1.1 Objectives
 
-- Navigate the APM repository structure and understand what each part does
-- Make targeted changes to templates, commands, guides, skills, or agent configurations
+- Navigate the repository and understand what each surface does
+- Make targeted changes to templates, guides, skills, agents, hooks or the CLI
 - Build and test changes locally
-- Produce releases that can be installed via `apm custom`
+- Produce a release installable with `apm custom`
 
 ### 1.2 How to Use
 
-The User describes what they want to change or add. The Agent explores the relevant parts of the repository, proposes changes, and implements them after User approval. This skill provides the orientation needed to find the right files and understand how they connect.
+The User describes what they want changed. The Agent explores the relevant surface, proposes
+the change, and implements it after approval. Read the standard for a surface before editing
+it; each one is listed with its surface below.
 
 ---
 
 ## 2. Repository Structure
 
-Explore the repository to understand the layout. The key directories are:
+**`templates/`** - The source of everything a User receives. Four emitted categories plus one
+that never ships:
 
-**`templates/`** - The source files that become the APM installation. Everything the User receives when running `apm init` or `apm custom` originates here. Changes to APM's workflow, procedures, communication patterns, or agent behavior happen in this directory.
+| Directory | Becomes | Notes |
+|---|---|---|
+| `templates/skills/` | `.claude/skills/` | Whole directories, tree preserved, any extension. Frontmatter on `SKILL.md` only |
+| `templates/guides/` | `.claude/apm-guides/` | Flat, `.md` only, no frontmatter |
+| `templates/agents/` | `.claude/agents/` | Flat, `.md` only, frontmatter on every file |
+| `templates/hooks/` | `.claude/apm-hooks/` | Whole directory, any extension, no frontmatter. Source file mode is carried through |
+| `templates/apm/` | `.apm/` | Copied verbatim: the artifact templates for Spec, Plan, Tracker and Memory Index |
+| `templates/_standards/` | nothing | Build-time only. Nothing in a bundle may reference it |
 
-**`templates/commands/`** - Slash commands the User sends to the model. These are the entry points for each Agent role (Planner, Manager, Worker) and for workflow actions (check-tasks, check-reports, handoff, recover, summarize).
+A top-level directory under `templates/` that is not one of these is skipped with a warning
+that names it.
 
-**`templates/guides/`** - Procedural files Agents read autonomously. Each guide contains a single procedure with operational standards, step-by-step actions, output specifications, and content guidelines. Guides are the most detailed procedural documents in the system.
+**`templates/skills/`** holds the nine role entry points - `apm.plan`, `apm.manage`,
+`apm.work`, `apm.task`, `apm.review`, `apm.handoff.manager`, `apm.handoff.worker`,
+`apm.summarize`, `apm.recover` - plus `apm-communication`, which is not an entry point but the
+shared bus protocol the roles load. A skill directory may carry support files of any
+extension; only `SKILL.md` takes frontmatter.
 
-**`templates/skills/`** - Shared capabilities read by multiple Agent roles. Each skill lives in its own directory with a `SKILL.md` file and optional supporting files.
+**`templates/guides/`** holds the procedural documents agents read autonomously: context
+gathering, work breakdown, task assignment, task execution, task logging, task review.
 
-**`templates/agents/`** - Subagent configurations shipped with APM bundles.
+**`templates/agents/`** holds the subagents: an archive explorer and the five review lenses.
 
-**`templates/apm/`** - Artifact templates that become the `.apm/` directory (Spec, Plan, Tracker, Memory Index templates).
+**`templates/hooks/`** holds the two hook scripts. They are POSIX `sh` and are declared in the
+project's `.claude/settings.json` by the CLI, not by the bundle.
 
-**`templates/_standards/`** - Development-time specifications that define how templates should be written. These files are not included in builds. Read them to understand the design rules:
-- `WORKFLOW.md` - The formal workflow specification. This is the source of truth for all behavior. Any change to APM's workflow must be reflected here first, then propagated to runtime files.
-- `TERMINOLOGY.md` - Formal vocabulary and defined concepts
-- `STRUCTURE.md` - Structural standards for each file type
-- `WRITING.md` - Writing patterns, tone, formatting
-- `NOTES.md` - Development notes and research findings for the official repository. Internal development doc, not relevant to custom repos unless the User has added their own entries.
+**`templates/_standards/`** - read before editing anything under `templates/`:
+`WORKFLOW.md` (the source of truth for behaviour), `TERMINOLOGY.md`, `STRUCTURE.md`,
+`WRITING.md`, `NOTES.md`.
 
-**`build/`** - The build system that processes templates into platform-specific bundles. `build-config.json` defines the supported targets (assistants) and their directory layouts.
+**`build/`** - Turns templates into the bundle. `build-config.json` declares the target.
+Standard: `build/_standards/BUILD.md`.
 
-**`src/`** - The `agentic-pm` CLI source code. Changes here affect the CLI tool itself, not the templates.
+**`src/`** - The `agentic-pm` CLI. Standard: `src/_standards/CLI.md`.
 
-**`skills/`** - Standalone skills (like this one) that are not part of the main APM bundles.
+**`test/`** - Vitest suites over the build, the CLI, the hooks and the template contracts.
+
+**`docs/`** - Documentation that is not part of a bundle, such as the spec delta format.
+
+**`skills/`** - Standalone skills like this one, not part of any bundle.
 
 ---
 
-## 3. How Templates Become Installations
+## 3. How Templates Become the Bundle
 
-Templates use placeholders that the build system resolves per platform at build time. Understanding this is essential for making changes.
+There is **one target**, `claude`, declared in `build/build-config.json`. It sets the config
+directory, the rules file (`CLAUDE.local.md`), the four output directories, and the natural
+language used for new-chat and subagent guidance. Adding a second target means reintroducing
+portability the guides no longer assume; see the README before proposing it.
 
-Explore `build/processors/placeholders.js` to see all supported placeholders. Common ones include:
+Templates carry placeholders that the build resolves. Read
+`build/processors/placeholders.js` for the full list. The ones most often needed:
 
-- `{VERSION}` - Release version
-- `{RULES_FILE}` - Platform-specific rules file name (e.g. `CLAUDE.md`, `AGENTS.md`)
-- `{SKILL_PATH:name}` - Resolved path to a skill file
-- `{GUIDE_PATH:name}` - Resolved path to a guide file
-- `{COMMAND_PATH:name}` - Resolved path to a command file
-- `{ARGS}` - Platform-specific argument syntax
-- `{SUBAGENT_GUIDANCE}` - Platform-native subagent invocation
+| Placeholder | Resolves to |
+|---|---|
+| `{SKILL_NAME:slug}` | The skill's invocation name, `/apm.<slug>`. Use this rather than writing a skill name literally |
+| `{SKILL_PATH:name}` | Path to a skill file, `<skills dir>/<name>/SKILL.md` |
+| `{GUIDE_PATH:name}` | Path to a guide file |
+| `{AGENT_PATH:name}` | Path to an agent file |
+| `{HOOK_PATH:name}` | Path to a hook script, `<hooks dir>/<name>.sh`. Use this in any text that tells someone where a hook lives |
+| `{RULES_FILE}` | The target's rules file name |
+| `{SKILLS_DIR}`, `{GUIDES_DIR}`, `{AGENTS_DIR}` | The output directories |
+| `{ARGS}` | The argument variable |
+| `{NEW_CHAT_GUIDANCE}` | Natural language for starting a new session |
+| `{PLANNER_SUBAGENT_GUIDANCE}`, `{MANAGER_SUBAGENT_GUIDANCE}`, `{WORKER_SUBAGENT_GUIDANCE}`, `{SUBAGENT_GUIDANCE}`, `{ARCHIVE_EXPLORER_GUIDANCE}` | Role-specific subagent invocation guidance |
+| `{VERSION}`, `{TIMESTAMP}` | Release version and build time |
 
-Explore `build/build-config.json` to see each target's directory layout, format (Markdown or TOML), and platform-specific values.
+Only `.md` and `.sh` are read as text and substituted. Every other extension is copied byte
+for byte, so a JSON schema shipped inside a skill keeps its braces.
+
+The three frontmatters - skill, agent, and the one guides do not have - do not share a
+spelling convention. Copying a field from one surface to another is the usual way to write
+something the platform silently ignores. The build warns on frontmatter keys it does not
+recognise; do not ignore that warning.
 
 **Building locally:**
 
@@ -78,64 +114,91 @@ npm install
 npm run build:release
 ```
 
-This produces a `dist/` directory with ZIP bundles per assistant and an `apm-release.json` manifest. The User can test locally by extracting a bundle into a project.
+This writes `dist/` with `claude.zip` and `apm-release.json`. Extract the bundle into a
+throwaway project to test it. Never commit `dist/`.
+
+**Testing:**
+
+```bash
+npm test
+```
+
+The suite covers the build, the CLI, the hook scripts and the cross-surface template
+contracts - including that every placeholder used in a template is one the build resolves.
+A change to any surface should leave it green.
 
 ---
 
 ## 4. Making Changes
 
-When the User requests a change, identify which layer it affects. All workflow changes follow a top-down propagation:
+Identify the surface first. Workflow changes propagate top down:
 
-1. **Update `WORKFLOW.md` first** - Any change that affects APM's behavior, procedures, or coordination patterns must be reflected in the workflow specification before modifying runtime files. `WORKFLOW.md` is the source of truth.
-2. **Propagate to runtime files** - Commands, guides, skills, and agent configurations implement the workflow spec. Update these to match the changes made in `WORKFLOW.md`, following the conventions in `STRUCTURE.md`, `WRITING.md`, and `TERMINOLOGY.md`.
+1. **Update `WORKFLOW.md`** - any change to behaviour, procedure or coordination goes into the
+   specification before any runtime file changes.
+2. **Propagate to runtime files** - skills, guides, agents and hooks implement the spec,
+   following `STRUCTURE.md`, `WRITING.md` and `TERMINOLOGY.md`.
 
-Changes that do not affect the workflow (e.g. adjusting wording within existing procedures, adding examples to guidance fields) can be made directly in runtime files without updating `WORKFLOW.md`.
+Changes that do not affect behaviour - rewording inside an existing procedure, adding an
+example - go straight into the runtime file.
 
-### Template Content Changes
+### Template Content
 
-Most customizations involve modifying template files in `templates/`. The `_standards/` files define the conventions:
+- Guides follow the five-section pattern: Overview, Operational Standards, Procedure,
+  Structural Specifications, Content Guidelines.
+- Skills require an Overview section; the rest of the internal organisation is free.
+- Text addressed to the User carries no section numbers and no procedure names.
+- Imperative mood, hyphens rather than dashes, and an end-of-document marker.
 
-- Commands follow structural profiles defined in `STRUCTURE.md` (strict for initiation, lightweight for utility)
-- Guides follow a five-section pattern (Overview, Operational Standards, Procedure, Structural Specifications, Content Guidelines)
-- Skills have a required Overview section and free-form internal organization
-- All files use the terminology defined in `TERMINOLOGY.md`
-- Writing follows the patterns in `WRITING.md` (imperative mood, token efficiency, de-duplication)
+### Adding a File
 
-Read the relevant `_standards/` file before making changes to understand the conventions in play.
+1. Follow `STRUCTURE.md` for that file type.
+2. Add frontmatter where the category requires it: `SKILL.md` and every agent file, never a
+   guide.
+3. Use placeholders for paths, the rules file, and anything platform-specific.
+4. Update the cross-references that should load it. A new file nothing references ships and
+   is never read.
 
-### Adding New Files
+### Hooks
 
-When adding a new guide, skill, command, or agent:
+A hook script goes in `templates/hooks/`, committed executable. The declaration that makes
+the platform run it lives in `src/services/settings.js`, which merges APM's declarations into
+the project's `.claude/settings.json` on `apm init`, `apm custom`, `apm add` and `apm update`,
+and withdraws them on `apm remove`. Adding a hook means both: the script, and its declaration.
 
-1. Follow the structural conventions from `STRUCTURE.md` for that file type
-2. Add YAML frontmatter where required (commands and skills require it, guides do not)
-3. Use placeholders for any paths, rules file references, or platform-specific values
-4. Update cross-references in other files if the new file should be loaded by an Agent
+A hook that blocks must say why. The dispatch gate exits 2 and writes the reason to stderr,
+naming the checklist item or deferred entry that caused the block - a block with no reason
+forces an investigation, which is worse than no block.
 
-### Build Configuration Changes
+### CLI
 
-If adding a new target (assistant), modify `build/build-config.json` to add the target definition with its directories, format, and platform-specific values. Explore existing targets as examples.
+Changes under `src/` follow `src/_standards/CLI.md` and version separately from template
+releases. Beyond template management, the CLI carries two command groups worth knowing about:
 
-### CLI Changes
-
-Changes to `src/` affect the CLI tool. These follow different conventions defined in `src/_standards/CLI.md` and require their own release cycle (npm publish, separate from template releases).
+- `apm knowledge init | emit | audit` - scaffolds the project knowledge layer, ingests a Task
+  Log into it as claims with provenance, and audits the substrate. The command drives a
+  consumer interface and knows nothing tool-specific; adapters live in
+  `src/services/knowledge/`.
+- `apm delta validate <path>` - checks spec deltas against the specs they change. Format and
+  rules in `docs/deltas.md`.
 
 ---
 
 ## 5. Releasing
 
-After making changes, the User creates a release that can be installed via `apm custom`.
+1. **Build** - `npm run build:release`.
+2. **Test** - `npm test`, then extract `dist/claude.zip` into a throwaway project and exercise
+   the change.
+3. **Tag** - a git tag following `VERSIONING.md`.
+4. **Release** - a GitHub Release with everything in `dist/` attached: `claude.zip` and
+   `apm-release.json`.
 
-1. **Build** - Run `npm run build:release` to generate bundles in `dist/`
-2. **Test** - Extract a bundle into a test project and verify the changes work
-3. **Tag** - Create a git tag following the versioning convention
-4. **Release** - Create a GitHub Release and attach all files from `dist/` (the ZIP bundles and `apm-release.json`)
+`apm-release.json` is what the CLI reads to discover what a release contains; see
+`build/generators/manifest.js`.
 
-The `apm-release.json` manifest is what the CLI reads to discover available assistants in the release. Explore `build/generators/manifest.js` to understand its structure.
+`.github/workflows/` is inherited from upstream and tailored to its release pipeline. Do not
+assume it works as-is in a fork. The manual build-tag-release above is the reliable path.
 
-Note: the `.github/workflows/` directory contains CI workflows configured for the official APM repository's release pipeline. These workflows are tailored to the official repo's versioning and publishing process. For custom repositories, the manual build-tag-release approach described above is more straightforward. The User can set up their own CI workflows if needed, but the official ones should not be assumed to work as-is in a fork.
-
-Users install from the custom repository with:
+Users install from a custom repository with:
 
 ```bash
 apm custom -r owner/repo
@@ -145,13 +208,16 @@ apm custom -r owner/repo
 
 ## 6. Communicating Changes
 
-When the User's custom repository diverges from the official APM release, changes should be documented:
+A custom repository that diverges from its source should say how:
 
-- Update the repository's README to describe what was customized and why
-- If the changes affect the workflow (new procedures, modified coordination patterns), note how the customization differs from the official documentation
-- If adding new commands or skills, document their purpose and usage
+- Describe in the README what was customized and why.
+- Note where the workflow differs from the documentation the User may be reading.
+- Document any new skill or command.
 
-Custom repositories carry trust implications for anyone who installs from them. Bundles can write files anywhere within the project directory, and the templates define how AI assistants behave. When publishing a custom repository, document what the customization changes so users can make informed trust decisions. If the customization adds files outside the standard assistant config directory (e.g., source files, configuration), note this explicitly in the README.
+Custom repositories carry trust implications. A bundle can write anywhere in the project
+directory, the templates determine how the assistant behaves, and installing declares hooks in
+the project's settings file. If a customization writes outside `.claude/` and `.apm/`, say so
+explicitly, so anyone installing it can make an informed decision.
 
 ---
 
