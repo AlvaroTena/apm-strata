@@ -18,6 +18,7 @@ import { addCommand } from './commands/add.js';
 import { removeCommand } from './commands/remove.js';
 import { statusCommand } from './commands/status.js';
 import { knowledgeInitCommand, knowledgeEmitCommand, knowledgeAuditCommand } from './commands/knowledge.js';
+import { deltaValidateCommand } from './commands/delta.js';
 import { CLI_VERSION, OFFICIAL_REPO_URL } from './core/constants.js';
 import { CLIError } from './core/errors.js';
 import logger from './ui/logger.js';
@@ -53,6 +54,7 @@ function displayHelp() {
   console.log(`  ${chalk.bold('remove')}            Remove assistant(s) from installation`);
   console.log(`  ${chalk.bold('status')}            Show installation status`);
   console.log(`  ${chalk.bold('knowledge')}         Scaffold the project knowledge layer`);
+  console.log(`  ${chalk.bold('delta')}             Validate spec deltas`);
   console.log('');
   console.log(chalk.cyan.bold('Shared Options:'));
   console.log(`  ${chalk.bold('-a, --assistant <id...>')}   Target assistant(s) ${chalk.dim('(init, custom, add, remove)')}`);
@@ -119,7 +121,7 @@ program
   });
 
 // Known command names for typo suggestions
-const KNOWN_COMMANDS = ['init', 'custom', 'update', 'archive', 'add', 'remove', 'status', 'knowledge'];
+const KNOWN_COMMANDS = ['init', 'custom', 'update', 'archive', 'add', 'remove', 'status', 'knowledge', 'delta'];
 
 // Default action (no command or unknown command)
 program.action(() => {
@@ -291,6 +293,22 @@ knowledge
   .action(async (options) => {
     try {
       await knowledgeAuditCommand(options);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+const delta = program
+  .command('delta')
+  .description('Validate spec deltas');
+
+delta
+  .command('validate')
+  .description('Check a delta against the spec it changes')
+  .argument('<path>', 'Delta document or directory to validate')
+  .action(async (target) => {
+    try {
+      await deltaValidateCommand(target);
     } catch (err) {
       handleError(err);
     }
