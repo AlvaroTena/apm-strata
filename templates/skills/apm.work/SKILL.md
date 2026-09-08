@@ -52,10 +52,11 @@ Perform the following actions:
 ## 3. Task Execution Loop
 
 When a Task Prompt is available (detected during init or delivered via `{SKILL_NAME:task}`):
-1. **Execute:** See `{GUIDE_PATH:task-execution}` §3 Task Execution Procedure. The guide controls validation, execution, and completion.
-2. **Log:** Create Task Log per `{GUIDE_PATH:task-logging}` §3 Task Logging Procedure.
-3. **Report:** Write Task Report per `{GUIDE_PATH:task-logging}` §3.2 Task Report Delivery.
-4. **Await:** Wait for next Task Prompt or User instruction.
+1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
+2. **Execute:** See `{GUIDE_PATH:task-execution}` §3 Task Execution Procedure. The guide controls validation, execution, and completion.
+3. **Log:** Create Task Log per `{GUIDE_PATH:task-logging}` §3 Task Logging Procedure.
+4. **Report:** Write Task Report per `{GUIDE_PATH:task-logging}` §3.2 Task Report Delivery.
+5. **Await:** Wait for next Task Prompt or User instruction.
 
 Repeat until all assigned Tasks are Done, User intervenes, or Handoff is needed.
 

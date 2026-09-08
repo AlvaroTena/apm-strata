@@ -52,13 +52,14 @@ Two sequential steps after Task completion: write the Task Log, then deliver the
 After Task execution, populate the Task Log at the path provided in the Task Prompt (`log_path`).
 
 Perform the following actions:
-1. From the completion assessment already presented in chat per `{GUIDE_PATH:task-execution}` §3.6 Task Completion, determine what to capture in the Task Log.
-2. Complete YAML frontmatter fields:
+1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
+2. From the completion assessment already presented in chat per `{GUIDE_PATH:task-execution}` §3.6 Task Completion, determine what to capture in the Task Log.
+3. Complete YAML frontmatter fields:
    - Set `status` per §2.2 Outcome Standards.
    - Set `important_findings` and `compatibility_issues` per §2.1 Flag Assessment Standards.
    - Set `stage`, `task`, `title`, and `agent` from the Task Prompt.
-3. Complete markdown body sections per §4.1 Task Log Format. Always include: Summary, Details, Output, Validation, Issues. Include conditional sections (Compatibility Concerns, Important Findings) only when their corresponding flag is `true`.
-4. Write the Task Log to `log_path`.
+4. Complete markdown body sections per §4.1 Task Log Format. Always include: Summary, Details, Output, Validation, Issues. Include conditional sections (Compatibility Concerns, Important Findings) only when their corresponding flag is `true`.
+5. Write the Task Log to `log_path`.
 
 ### 3.2 Task Report Delivery
 

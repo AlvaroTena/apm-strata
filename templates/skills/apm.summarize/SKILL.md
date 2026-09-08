@@ -11,22 +11,23 @@ allowed-tools: Agent(Explore)
 This skill summarizes the current APM session and optionally archives it. You are a standalone agent - not a Planner, Manager, or Worker. If you are one of those roles, concisely decline and take no action.
 
 **Procedure:**
-1. Read the following artifacts directly (these reads are independent):
+1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
+2. Read the following artifacts directly (these reads are independent):
    - `.apm/spec.md` - design decisions and constraints
    - `.apm/plan.md` - Stages, Tasks, agent assignments
    - `.apm/tracker.md` - Task statuses, Worker states, working notes
    - `.apm/memory/index.md` - Memory notes and Stage summaries
-   If working notes or Stage summaries reference specific Task Logs for claims or findings that need verification, read those logs directly. Do not read all Task Logs - comprehensive log review is handled by the subagent in step 2.
-2. {SUBAGENT_GUIDANCE} Prompt it to read all `.apm/` artifacts including Task Logs in `.apm/memory/` and cross-validate against the current codebase. The subagent verifies that deliverables exist, commits are on the expected branches, and key validation results hold. It reports back: per-Stage outcomes with log-level detail, codebase staleness relative to `.apm/` state, and notable findings from execution.
-3. Write `.apm/session-summary.md` per the session summary structure below. The summary is a point-in-time snapshot - state this explicitly.
-4. Present the summary to the User. Ask if there is anything to add, correct, or emphasize before finalizing. If the User provides input, update the summary accordingly.
-5. Ask: "Would you like me to archive this session?" If yes, ask whether the User wants a custom archive name or the default dated name.
+   If working notes or Stage summaries reference specific Task Logs for claims or findings that need verification, read those logs directly. Do not read all Task Logs - comprehensive log review is handled by the subagent in step 3.
+3. {SUBAGENT_GUIDANCE} Prompt it to read all `.apm/` artifacts including Task Logs in `.apm/memory/` and cross-validate against the current codebase. The subagent verifies that deliverables exist, commits are on the expected branches, and key validation results hold. It reports back: per-Stage outcomes with log-level detail, codebase staleness relative to `.apm/` state, and notable findings from execution.
+4. Write `.apm/session-summary.md` per the session summary structure below. The summary is a point-in-time snapshot - state this explicitly.
+5. Present the summary to the User. Ask if there is anything to add, correct, or emphasize before finalizing. If the User provides input, update the summary accordingly.
+6. Ask: "Would you like me to archive this session?" If yes, ask whether the User wants a custom archive name or the default dated name.
    - If the User declines, no further action.
-   - If the User approves, continue to step 6.
-6. Run `apm archive --force` or `apm archive --force --name <name>` if a custom name was provided. The CLI snapshots all `.apm/` artifacts (planning documents, Tracker, Memory) into `.apm/archives/<name>/`, writes archival metadata to `metadata.json` inside the archive, then removes the installed files and `.apm/metadata.json` from the workspace root - leaving it clean for a new session while preserving archives.
-7. Read `.apm/archives/index.md`. If it does not exist or is malformed, create it per the archive index format below.
-8. Append an entry for the newly archived session to the index table.
-9. Confirm to the User that archival is complete. To start a new APM session, the User runs `apm init` (or `apm custom`) in the terminal - this is a CLI command, not a skill. The CLI downloads and extracts fresh templates (guides, skills, agents) and scaffolds a new `.apm/` directory with blank planning documents (Spec, Plan, Tracker, Memory Index) and a new `metadata.json` tracking the installation. After init completes, the User starts a new Planner with `{SKILL_NAME:plan}` in their assistant. Archives from previous sessions remain in `.apm/archives/` and are accessible to the new Planner during Context Gathering.
+   - If the User approves, continue to step 7.
+7. Run `apm archive --force` or `apm archive --force --name <name>` if a custom name was provided. The CLI snapshots all `.apm/` artifacts (planning documents, Tracker, Memory) into `.apm/archives/<name>/`, writes archival metadata to `metadata.json` inside the archive, then removes the installed files and `.apm/metadata.json` from the workspace root - leaving it clean for a new session while preserving archives.
+8. Read `.apm/archives/index.md`. If it does not exist or is malformed, create it per the archive index format below.
+9. Append an entry for the newly archived session to the index table.
+10. Confirm to the User that archival is complete. To start a new APM session, the User runs `apm init` (or `apm custom`) in the terminal - this is a CLI command, not a skill. The CLI downloads and extracts fresh templates (guides, skills, agents) and scaffolds a new `.apm/` directory with blank planning documents (Spec, Plan, Tracker, Memory Index) and a new `metadata.json` tracking the installation. After init completes, the User starts a new Planner with `{SKILL_NAME:plan}` in their assistant. Archives from previous sessions remain in `.apm/archives/` and are accessible to the new Planner during Context Gathering.
 
 **Session summary structure:**
 

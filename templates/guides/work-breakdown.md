@@ -95,18 +95,19 @@ Present analysis visibly in chat for the User to review per `{SKILL_PATH:apm-com
 ### 3.1 Spec Analysis
 
 Present reasoning under the header **Spec Analysis:** addressing the aspects below. The Spec captures what is being built - not how work is decomposed. Workers, Stages, and Task structure are determined during Plan Analysis. Perform the following actions per §2.3 Spec Standards.
-1. Analyze design decisions from gathered context:
+1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
+2. Analyze design decisions from gathered context:
    - *Design decisions.* Each explicit choice and implicit constraint embedded in requirements: what was decided, what alternatives existed, why this direction. Surface assumptions stated as facts that represent actual decisions.
    - *Source documents:* which requirements already have authoritative definitions in User documents; reference rather than duplicate.
    - *Boundary calls.* For each candidate, determine its primary location per §2.1 Workflow Context: Spec (project-level design decisions), Task guidance (Task-scoped details, single-domain constraints), or Rules (universal execution patterns). Each item belongs in one primary location.
    - *Decision relationships:* decisions that cascade, constrain, or cluster naturally together.
    - *Structure rationale:* how to organize decisions by project concerns so the Manager can extract relevant content.
    - *Workspace.* From the workspace assessment during Context Gathering, document the project environment: directory structure, working repositories, reference repositories, authoritative document locations, existing `{RULES_FILE}` content that was found.
-2. Read `.apm/spec.md`, then write the full Spec per §4.1 Spec Format. Set `title` to the project name, `modified` to "Spec creation by the Planner.", and fill `## Overview` with 3-5 sentences (project type, core problem, essential scope, success criteria). Let content structure follow the decisions identified.
-3. Pause for User review:
+3. Read `.apm/spec.md`, then write the full Spec per §4.1 Spec Format. Set `title` to the project name, `modified` to "Spec creation by the Planner.", and fill `## Overview` with 3-5 sentences (project type, core problem, essential scope, success criteria). Let content structure follow the decisions identified.
+4. Pause for User review:
    - State the Spec is complete and the artifact is created.
    - Ask User to review for accuracy.
-   - If modifications needed, apply and repeat step 3.
+   - If modifications needed, apply and repeat step 4.
    - If approved, proceed to §3.2 Plan Analysis.
 
 ### 3.2 Plan Analysis
@@ -149,13 +150,16 @@ Perform the following actions per §2.5 `{RULES_FILE}` Standards:
    - **From gathered context:** workflow preferences, conventions, or quality requirements from Context Gathering not yet captured in the Spec or the Plan. Version control conventions are excluded - the Manager handles those and appends content to Rules during the start of the Implementation Phase.
    - **Classification:** Separate patterns that apply to all or most Tasks from narrowly Task-specific ones per §2.5 `{RULES_FILE}` Standards. Most projects produce few genuinely universal rules - project-specific constraints and output specifications belong in the Spec or Task guidance even when they apply to multiple Workers.
    - **Existing standards:** what `{RULES_FILE}` already contains; reference rather than duplicate.
-2. Read `{RULES_FILE}` (or confirm it does not exist), then write the APM_RULES block per §4.3 APM_RULES Block:
-   - If file exists: preserve existing content outside block, append APM_RULES block.
-   - If creating new: create file with APM_RULES block only.
-3. Pause for User review:
-   - State Rules are complete.
-   - Ask User to review `{RULES_FILE}` for accuracy.
-   - If modifications needed, apply and repeat step 3.
+2. Determine the target file. Ask the User whether the Rules should be version controlled - if yes, the target file is `CLAUDE.md`; if not, it is `{RULES_FILE}`. When the target is `{RULES_FILE}`, recommend adding it to the project `.gitignore` unless it is already listed there.
+3. Read `{RULES_FILE}` and `CLAUDE.md` (or confirm they do not exist), then write the APM_RULES block per §4.3 APM_RULES Block:
+   - If both files contain a block, replace the one in the target file and delete the other, leaving a single block.
+   - If one file contains a block, replace that block in full - the `APM_RULES {` line through the `} //APM_RULES` marker - in the file where it was found.
+   - If neither file contains a block, write the new block to the target file, creating the file when it does not exist.
+   - Preserve all content outside the block unchanged in every case.
+4. Pause for User review:
+   - State Rules are complete and name the file that was written. When an existing block was replaced, state that it was replaced and in which file.
+   - Ask User to review that file for accuracy.
+   - If modifications needed, apply and repeat step 4.
    - If approved, state Work Breakdown is complete and all planning documents are created. Proceed to `{SKILL_PATH:apm.plan}` §4 Planning Phase Completion.
 
 ---
@@ -268,6 +272,12 @@ APM_RULES {
 ```
 
 **Content rules:** No content outside the APM_RULES block unless explicitly requested. Use markdown headings (`##`) for categories. Each standard must be concrete and actionable. Only universal execution-level patterns - not architecture decisions, Task-specific guidance, or coordination decisions. Reference existing standards outside the block rather than duplicating.
+
+**Write semantics.** The block is a region that gets replaced, never a region that accumulates:
+- The block spans the `APM_RULES {` line through the `} //APM_RULES` marker. Everything outside it is User-managed and is never altered.
+- Both `{RULES_FILE}` and `CLAUDE.md` are searched for an existing block. A session that follows an archived one leaves its block behind, and a Rules file that changed name between sessions leaves that block in the other file - writing without searching both leaves two blocks in place and the wrong one takes effect.
+- An existing block is replaced in full. A block is added only when neither file has one.
+- Replacing a block is always reported to the User, naming the file it was replaced in. Replacing in silence costs the User the ability to notice that standards they relied on are gone.
 
 ---
 
