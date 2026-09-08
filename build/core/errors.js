@@ -15,16 +15,13 @@ export const BuildErrorCode = {
   // Config errors
   CONFIG_NOT_FOUND: 'CONFIG_NOT_FOUND',
   CONFIG_INVALID: 'CONFIG_INVALID',
-  CONFIG_MISSING_FIELD: 'CONFIG_MISSING_FIELD',
 
   // Template errors
   TEMPLATE_PARSE_FAILED: 'TEMPLATE_PARSE_FAILED',
   TEMPLATE_MISSING_FIELD: 'TEMPLATE_MISSING_FIELD',
-  TEMPLATE_READ_FAILED: 'TEMPLATE_READ_FAILED',
 
   // Build errors
-  ARCHIVE_FAILED: 'ARCHIVE_FAILED',
-  WRITE_FAILED: 'WRITE_FAILED'
+  ARCHIVE_FAILED: 'ARCHIVE_FAILED'
 };
 
 /**
@@ -87,19 +84,6 @@ export class BuildError extends Error {
     );
   }
 
-  /**
-   * Creates a BuildError for missing config field.
-   *
-   * @param {string} field - Missing field name.
-   * @returns {BuildError} Formatted error instance.
-   */
-  static configMissingField(field) {
-    return new BuildError(
-      `Missing required configuration field: ${field}`,
-      BuildErrorCode.CONFIG_MISSING_FIELD,
-      { field }
-    );
-  }
 
   /**
    * Creates a BuildError for template parse failure.
@@ -116,20 +100,6 @@ export class BuildError extends Error {
     );
   }
 
-  /**
-   * Creates a BuildError for missing frontmatter field.
-   *
-   * @param {string} file - Template file path.
-   * @param {string} field - Missing field name.
-   * @returns {BuildError} Formatted error instance.
-   */
-  static templateMissingField(file, field) {
-    return new BuildError(
-      `Missing required frontmatter field "${field}" in ${file}`,
-      BuildErrorCode.TEMPLATE_MISSING_FIELD,
-      { file, field }
-    );
-  }
 
   /**
    * Creates a BuildError for a template whose frontmatter failed validation.

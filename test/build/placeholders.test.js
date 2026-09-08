@@ -3,7 +3,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import fs from 'fs-extra';
+import path from 'path';
 import { replacePlaceholders } from '../../build/processors/placeholders.js';
+import { repoRoot, readTarget } from './support.js';
 
 /** Target stub with values distinct from the shipped configuration. */
 const target = {
@@ -93,5 +96,36 @@ describe('replacePlaceholders', () => {
     expect(replace('Plain text with { braces } and $ARGUMENTS.')).toBe(
       'Plain text with { braces } and $ARGUMENTS.'
     );
+  });
+});
+
+describe('shell expansions in scripts that receive substitution', () => {
+  // Shell scripts are substituted, and `${NAME}` contains `{NAME}`. A hook that
+  // expanded a variable sharing a name with a placeholder would be rewritten
+  // into something that still parses: `${VERSION}` becomes `$1.0.1`. Nothing at
+  // runtime reports that, so the collision is caught here instead.
+  it('does not rewrite any shell variable the hooks expand', async () => {
+    const hooksDir = path.join(repoRoot, 'templates', 'hooks');
+    const target = await readTarget();
+    const collisions = [];
+
+    for (const name of await fs.readdir(hooksDir)) {
+      if (!name.endsWith('.sh')) {
+        continue;
+      }
+
+      const script = await fs.readFile(path.join(hooksDir, name), 'utf8');
+
+      for (const [, variable] of script.matchAll(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g)) {
+        const braced = `{${variable}}`;
+        const substituted = replacePlaceholders(braced, { version: '0.0.0', target });
+
+        if (substituted !== braced) {
+          collisions.push(`${name} expands \${${variable}}, which the build would rewrite`);
+        }
+      }
+    }
+
+    expect([...new Set(collisions)]).toEqual([]);
   });
 });

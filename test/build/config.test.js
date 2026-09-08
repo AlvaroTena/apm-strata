@@ -2,10 +2,12 @@
  * Tests build configuration validation and template discovery.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { validateConfig } from '../../build/core/config.js';
 import { findTemplateFiles, TEMPLATE_CATEGORIES } from '../../build/utils/files.js';
-import { fixtureTemplates, readTarget } from './support.js';
+import fs from 'fs-extra';
+import path from 'path';
+import { fixtureTemplates, readTarget, makeTempDir, runBuild } from './support.js';
 
 /**
  * Builds a valid configuration, optionally mutated before validation.
@@ -100,5 +102,53 @@ describe('findTemplateFiles', () => {
     const found = await findTemplateFiles(fixtureTemplates);
 
     expect(found.map(entry => entry.category)).not.toContain('commands');
+  });
+});
+
+describe('unknown source directories', () => {
+  let temp;
+
+  beforeEach(async () => {
+    temp = await makeTempDir();
+  });
+
+  afterEach(async () => {
+    await temp.cleanup();
+  });
+
+  /**
+   * Copies the fixture tree and adds one directory that is not a category.
+   */
+  async function buildWithExtraDirectory(name) {
+    const source = path.join(temp.dir, 'templates');
+    await fs.copy(fixtureTemplates, source);
+    await fs.outputFile(path.join(source, name, 'stray.md'), '# Stray\n');
+
+    return runBuild({
+      sourceDir: source,
+      outputDir: path.join(temp.dir, 'out'),
+      target: await readTarget()
+    });
+  }
+
+  it('warns naming whichever directory it does not recognise', async () => {
+    // The warning is driven by the category list, not by a retired category
+    // name, so any directory added to templates/ by mistake is reported.
+    const { logs } = await buildWithExtraDirectory('workflows');
+
+    expect(logs.join('\n')).toContain('Skipping "workflows/": not a template category');
+  });
+
+  it('uses the same wording for a different unknown directory', async () => {
+    const { logs } = await buildWithExtraDirectory('commands');
+
+    expect(logs.join('\n')).toContain('Skipping "commands/": not a template category');
+  });
+
+  it('does not emit anything from an unknown directory', async () => {
+    const { entries } = await buildWithExtraDirectory('workflows');
+    const paths = entries.map(entry => entry.entryName);
+
+    expect(paths.some(entryPath => entryPath.includes('stray.md'))).toBe(false);
   });
 });

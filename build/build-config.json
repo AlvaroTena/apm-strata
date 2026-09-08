@@ -17,7 +17,6 @@
         "agents": ".claude/agents",
         "hooks": ".claude/apm-hooks"
       },
-      "contextAttachSyntax": "Reference the file using `@` followed by the file path.",
       "newChatGuidance": "Open a new terminal and start Claude Code",
       "subagentGuidance": {
         "hasSubagents": true,

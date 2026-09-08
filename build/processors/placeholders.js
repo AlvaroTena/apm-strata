@@ -35,7 +35,6 @@ const SKILL_NAME_PREFIX = 'apm.';
  * - {WORKER_SUBAGENT_GUIDANCE}: Subagent guidance for Worker context integration
  * - {SUBAGENT_GUIDANCE}: Subagent guidance for non-role agents
  * - {ARCHIVE_EXPLORER_GUIDANCE}: Guidance for spawning the apm-archive-explorer custom agent
- * - {CONTEXT_ATTACH_SYNTAX}: Instructions for how Users reference files in chat
  * - {NEW_CHAT_GUIDANCE}: Natural language clause for starting a new chat
  *
  * @param {string} content - Template content with placeholders.
@@ -122,9 +121,6 @@ export function replacePlaceholders(content, context) {
   const archiveExplorerPath = path.join(directories.agents, 'apm-archive-explorer.md');
   const archiveExplorerText = `spawn a subagent with the \`${archiveExplorerPath}\` agent configuration and pass it the archive path(s) to explore`;
   replaced = replaced.replace(/{ARCHIVE_EXPLORER_GUIDANCE}/g, archiveExplorerText);
-
-  // Replace CONTEXT_ATTACH_SYNTAX placeholder
-  replaced = replaced.replace(/{CONTEXT_ATTACH_SYNTAX}/g, target.contextAttachSyntax || 'Reference the file path in your message.');
 
   // Replace NEW_CHAT_GUIDANCE placeholder
   replaced = replaced.replace(/{NEW_CHAT_GUIDANCE}/g, target.newChatGuidance || 'Start a new chat');
