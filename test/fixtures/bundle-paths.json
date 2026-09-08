@@ -1,0 +1,22 @@
+[
+  ".apm/",
+  ".apm/memory/",
+  ".apm/memory/index.md",
+  ".apm/plan.md",
+  ".apm/spec.md",
+  ".apm/tracker.md",
+  ".claude/",
+  ".claude/agents/",
+  ".claude/agents/apm-archive-explorer.md",
+  ".claude/apm-guides/",
+  ".claude/apm-guides/context-gathering.md",
+  ".claude/apm-guides/task-assignment.md",
+  ".claude/apm-guides/task-execution.md",
+  ".claude/apm-guides/task-logging.md",
+  ".claude/apm-guides/task-review.md",
+  ".claude/apm-guides/work-breakdown.md",
+  ".claude/skills/",
+  ".claude/skills/apm-communication/",
+  ".claude/skills/apm-communication/SKILL.md",
+  ".claude/skills/apm-communication/bus-integration.md"
+]

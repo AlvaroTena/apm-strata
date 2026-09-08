@@ -1,0 +1,1 @@
+Not markdown, so the guides category must ignore this file. {VERSION}
