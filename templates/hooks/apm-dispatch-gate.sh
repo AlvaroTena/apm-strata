@@ -159,6 +159,11 @@ if [ -n "$task_id" ] && [ -f "$TRACKER" ]; then
   deferred=$(awk -v want="$task_id" '
     function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
 
+    # The Task identity is interpolated into a regular expression below, so its
+    # metacharacters are escaped first. Without this, the dot in "2.3" matches
+    # any character and an item blocking "2-3" would also block Task 2.3.
+    BEGIN { gsub(/[].[^$(){}|*+?\\]/, "\\\\&", want) }
+
     /^##[[:space:]]/ { in_section = ($0 ~ /^##[[:space:]]+Deferred[[:space:]]*$/); seen_rule = 0; next }
     !in_section { next }
     $0 !~ /^\|/ { next }

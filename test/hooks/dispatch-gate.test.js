@@ -144,6 +144,22 @@ describe('dispatch gate: deferred condition', () => {
     expect(status).toBe(0);
   });
 
+  it('does not treat the dot in a task identity as a regular expression wildcard', async () => {
+    // An item blocking "2-3" must not block Task 2.9 or any other Task whose
+    // identity differs only where the dot sits. Written as a range by hand,
+    // "2-3" is a plausible entry and matched Task 2.3 before the identity was
+    // escaped.
+    const rangeTracker = TRACKER.replace('| 2.9, 3.1 | open |', '| 2-9 | open |');
+    await fs.outputFile(path.join(project, '.apm', 'tracker.md'), rangeTracker);
+
+    const { status } = runGate({
+      file_path: path.join(project, '.apm', 'bus', 'review-agent', 'task.md'),
+      content: TASK_PROMPT
+    });
+
+    expect(status).toBe(0);
+  });
+
   it('ignores a closed item that names this task', () => {
     const trackerWithOnlyClosed = TRACKER.replace('| 2.9, 3.1 | open |', '| 2.9, 3.1 | done |');
     return fs
