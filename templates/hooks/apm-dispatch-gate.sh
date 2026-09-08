@@ -117,9 +117,16 @@ task_id=$(printf '%s\n' "$dispatched" | awk '
 
 blocks=""
 
-# Condition one: an unchecked box in any checklist. Every regular file under the
-# directory is read, not only *.md - a checklist the gate cannot see is a gate
-# that passes silently.
+# Condition one: an unchecked box in any checklist. An item is a box that opens
+# its own line, exactly as the checklist format requires - leading whitespace,
+# a quote marker or any other text ahead of it means the line is not an item.
+# Only an empty box counts as unchecked, so both "[x]" and "[X]" read as marked.
+#
+# Every regular file under the directory is read rather than the two the format
+# names, because a checklist the gate cannot see is a gate that passes silently.
+#
+# No checklists is a free pass: an absent or empty directory does not block.
+# The gate enforces unfinished review, not the absence of a review artifact.
 if [ -d "$CHECKLIST_DIR" ]; then
   checklists=$(find "$CHECKLIST_DIR" -type f 2>/dev/null | sort)
   if [ -n "$checklists" ]; then

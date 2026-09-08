@@ -225,3 +225,109 @@ describe('dispatch gate: quiet paths', () => {
     expect(status).toBe(0);
   });
 });
+
+describe('dispatch gate: checklist contract', () => {
+  const SPEC_CHECKLIST = [
+    '# Spec Quality Checklist',
+    '',
+    '**Reviewed document:** `.apm/spec.md`',
+    '**Marker semantics:** `[x]` means the reviewer confirms this requirement quality criterion is satisfied.',
+    '',
+    '- [x] Does every requirement state a measurable outcome? [Measurability, Requirements]',
+    '- [ ] Is the retention window stated as a single value? [Clarity, Constraints]',
+    ''
+  ].join('\n');
+
+  /** Writes a checklist at the contract's own location. */
+  function writeSpecChecklist(body) {
+    return fs.outputFile(path.join(project, '.apm', 'checklists', 'spec.md'), body);
+  }
+
+  /** Dispatches against the bus file and returns the verdict. */
+  function dispatch() {
+    return runGate({
+      file_path: path.join(project, '.apm', 'bus', 'review-agent', 'task.md'),
+      content: TASK_PROMPT
+    });
+  }
+
+  it('names the question and its dimension and section', async () => {
+    await writeSpecChecklist(SPEC_CHECKLIST);
+
+    const { status, stderr } = dispatch();
+
+    expect(status).toBe(2);
+    expect(stderr).toContain('Is the retention window stated as a single value?');
+    expect(stderr).toContain('[Clarity, Constraints]');
+    expect(stderr).toContain('spec.md');
+  });
+
+  it('treats an uppercase marker as marked', async () => {
+    await writeSpecChecklist(SPEC_CHECKLIST.replace('- [ ] Is the retention', '- [X] Is the retention'));
+
+    expect(dispatch().status).toBe(0);
+  });
+
+  it('treats a lowercase marker as marked', async () => {
+    await writeSpecChecklist(SPEC_CHECKLIST.replace('- [ ] Is the retention', '- [x] Is the retention'));
+
+    expect(dispatch().status).toBe(0);
+  });
+
+  it('ignores an unmarked box that is not at the start of its line', async () => {
+    for (const line of [
+      '  - [ ] Indented, so not a checklist item',
+      '\t- [ ] Tab indented, so not a checklist item',
+      '> - [ ] Quoted, so not a checklist item',
+      'Note that - [ ] mid-line is not a checklist item'
+    ]) {
+      await writeSpecChecklist(`# Spec Quality Checklist\n\n${line}\n`);
+
+      expect(dispatch().status, `${line} must not gate`).toBe(0);
+    }
+  });
+
+  it('reads both checklists the contract names', async () => {
+    await writeSpecChecklist('# Spec Quality Checklist\n\n- [x] Answered? [Clarity, Requirements]\n');
+    await fs.outputFile(
+      path.join(project, '.apm', 'checklists', 'plan.md'),
+      '# Plan Quality Checklist\n\n- [ ] Is every Task independently validatable? [Coverage, Stages]\n'
+    );
+
+    const { status, stderr } = dispatch();
+
+    expect(status).toBe(2);
+    expect(stderr).toContain('Is every Task independently validatable?');
+  });
+});
+
+describe('dispatch gate: absent checklists are a free pass', () => {
+  /** Dispatches against the bus file and returns the verdict. */
+  function dispatch() {
+    return runGate({
+      file_path: path.join(project, '.apm', 'bus', 'review-agent', 'task.md'),
+      content: TASK_PROMPT
+    });
+  }
+
+  it('allows a dispatch when the checklist directory does not exist', async () => {
+    expect(await fs.pathExists(path.join(project, '.apm', 'checklists'))).toBe(false);
+
+    expect(dispatch().status).toBe(0);
+  });
+
+  it('allows a dispatch when the checklist directory is empty', async () => {
+    await fs.ensureDir(path.join(project, '.apm', 'checklists'));
+
+    expect(dispatch().status).toBe(0);
+  });
+
+  it('allows a dispatch when a checklist holds no boxes at all', async () => {
+    await fs.outputFile(
+      path.join(project, '.apm', 'checklists', 'spec.md'),
+      '# Spec Quality Checklist\n\nNo items were written yet.\n'
+    );
+
+    expect(dispatch().status).toBe(0);
+  });
+});
