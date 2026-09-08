@@ -1,13 +1,15 @@
 ---
-command_name: handoff-manager
-description: Perform a Handoff with an APM Manager.
+name: apm.handoff.manager
+description: Hands the Manager role to a new instance as the context window fills.
+disable-model-invocation: true
+argument-hint: "(no arguments)"
 ---
 
-# APM {VERSION} - Manager Handoff Command
+# APM {VERSION} - Manager Handoff Skill
 
 ## 1. Overview
 
-This command initiates the Handoff procedure for a Manager approaching context window limits. You create two artifacts:
+This skill initiates the Handoff procedure for a Manager approaching context window limits. You create two artifacts:
 - **Handoff Log:** Working context not captured in planning documents or Task Logs, stored in `.apm/memory/handoffs/manager/`.
 - **Handoff prompt:** Written to the Handoff Bus, instructing the incoming Manager to reconstruct context procedurally.
 
@@ -44,7 +46,7 @@ Perform the following actions:
 
 Perform the following actions:
 1. Write handoff prompt to the Handoff Bus: `.apm/bus/manager/handoff.md`.
-2. Present both artifacts to User: Handoff Log (file path) and handoff prompt (bus path). Request review and direct User to start a new chat and run `/apm-2-initiate-manager` - the incoming Manager will auto-detect the handoff prompt.
+2. Present both artifacts to User: Handoff Log (file path) and handoff prompt (bus path). Request review and direct User to start a new chat and run `{SKILL_NAME:manage}` - the incoming Manager will auto-detect the handoff prompt.
 3. If modifications requested, update accordingly. This completes the outgoing Manager's duties.
 
 ---
@@ -83,7 +85,7 @@ stage: <N>
 
 ## 4. Handoff Prompt Structure
 
-Written to `.apm/bus/manager/handoff.md`. The incoming Manager processes this prompt during auto-detection in the init command.
+Written to `.apm/bus/manager/handoff.md`. The incoming Manager processes this prompt during auto-detection in the initiation skill.
 
 **Required content:**
 - *Identity:* Outgoing and incoming instance numbers.
@@ -97,4 +99,4 @@ Written to `.apm/bus/manager/handoff.md`. The incoming Manager processes this pr
 
 ---
 
-**End of Command**
+**End of Skill**

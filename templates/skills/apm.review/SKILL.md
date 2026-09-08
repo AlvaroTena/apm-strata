@@ -1,9 +1,11 @@
 ---
-command_name: check-reports
-description: Deliver a Task Report to an APM Manager.
+name: apm.review
+description: Delivers pending Task Reports to the Manager.
+disable-model-invocation: true
+argument-hint: "[agent-id ...]"
 ---
 
-# APM {VERSION} - Manager Check Reports Command
+# APM {VERSION} - Manager Check Reports Skill
 
 Check Report Bus(es) for pending Task Reports. If you are a Planner, Worker, or non-APM agent, concisely decline and take no action. This replaces manual file referencing - scan bus directories or check a specific Worker's Report Bus.
 
@@ -20,4 +22,4 @@ Accepts optional `[agent-id ...]` arguments. With arguments, checks those Worker
 
 ---
 
-**End of Command**
+**End of Skill**
