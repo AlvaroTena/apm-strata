@@ -8,6 +8,8 @@ This guide defines how you review Task results, determine review outcomes, modif
 
 ### 1.1 Outputs
 
+- *Staged review material:* `.apm/review/<stage>-<task>/`, written once per review and read by the lenses.
+- *Triage record:* `triage.md` in that directory, one row per finding, with your verdict and the bucket you routed it to.
 - *Stage summaries:* Appended to the Index after each Stage completion.
 - *Updated Tracker:* Updated after each review cycle to reflect Task state changes, readiness changes, merge state, and coordination context.
 - *Modified planning documents:* When findings warrant it - updated Spec, Plan, or Rules.
@@ -16,38 +18,36 @@ This guide defines how you review Task results, determine review outcomes, modif
 
 ## 2. Operational Standards
 
-### 2.1 Task Log Review Standards
+### 2.1 Delegated Review Standards
 
-Extract the information needed for the next review decision.
+**You do not read the deliverable.** Not the diff, not the document, not the Task Log that describes them. You stage that material to file, hand its paths to lenses that have no other context, and spend your own context on the one thing nobody can do for you: deciding whether each finding is real and what follows from it.
 
-**Status interpretation:** Assess whether the status and flags are consistent with the log's body content - inconsistency is a hallucination indicator. Status values are Success (objective achieved, all validation passed), Partial (progress made, needs guidance), Failed (objective not achieved).
+This is not a preference. A coordinator who reads each deliverable and holds it against its sources exhausts itself, and it does so while inheriting the blind spot that matters most - it already believes the plan the deliverable was built from, so it reads to confirm. Measured on a real project, coordinators burned out at thirteen instances while the agents doing the work lasted between one and six, and the asymmetry was the reviewing. Reading is the expensive half and the least reliable half, so it moves into contexts that are meant to end.
 
-**Flag interpretation.** Workers set flags based on scoped observations. Interpret with full project awareness:
-- `important_findings: true` - Worker observed something potentially beyond Task scope. Assess whether it affects planning documents or other Tasks. When findings indicate that validation criteria from the Task Prompt were not fully exercised, this warrants investigation before marking Done. Important findings may also include User corrections noted as potential Rules entries - assess whether they warrant a Rules addition per §2.3 Planning Document Modification Standards.
-- `compatibility_issues: true` - Worker observed conflicts with existing systems. Assess whether it indicates Plan, Spec, or Rules issues.
+What you read is the Task Report, which is a bus message, and `triage.md`, which is your own record. Everything else you route.
 
-**Completeness first.** A log is reviewable only once it says everything the format requires it to say. `## Claims` is mandatory: a log without it is incomplete, whatever its status field claims, and the Task does not pass review on it. Treat the omission as unfinished work rather than as an absence of claims - a Task with nothing falsifiable to stand behind writes `none`, and that is a different statement from silence. Send it back for the section before assessing anything else.
+**The report is a pointer, not evidence.** Its status and flags tell you what to stage and what to watch for, not what happened. Treat `important_findings: true` as a reason to look at what the lenses say about scope, and `compatibility_issues: true` as a reason to look at what they say about integration - not as conclusions. A report whose status contradicts what triage establishes is itself a finding.
 
-`## Rule Deviations` is different: it appears only when a rule was departed from, so its absence says nothing. When it is present, read it - each row is a deviation someone chose, and the rejected alternative is the part worth checking.
+**Completeness is a precondition, checked mechanically.** A Task Log with no `## Claims` section is incomplete, whatever its status field says, and there is nothing to stage: `claims.md` would be empty and the edge-case lens would have no testimony to falsify. Confirm the section is present before staging - a heading check, not a read - and send the log back for it when it is missing. A Task with nothing falsifiable to stand behind writes `none`, which is a statement; silence is not.
 
-**Content review:** Beyond flags and status, review the log body sections (Summary, Details, Output, Validation, Claims, Issues) to understand what happened and inform the review outcome. When findings contradict content in the Spec, Plan, or Rules - factual inaccuracies, incorrect assumptions, outdated descriptions - treat the affected document as needing correction per §3.4 Planning Document Modification regardless of whether the Worker handled the discrepancy.
+`## Rule Deviations` is different. It appears only when a rule was departed from, so its absence says nothing and cannot be checked. When it is present it goes into `context.md`, where the lenses see it - which is the point of the table.
 
 ### 2.2 Review Outcome Standards
 
-After reviewing a Task Log, determine the review outcome.
+The outcome comes out of triage, not out of your own reading of the deliverable per §2.1 Delegated Review Standards.
 
-**Review the log:** If everything looks good - Success status with no flags, log content supports the status - proceed to Task Tracking updates. If something needs attention - flags raised, non-Success status, or inconsistencies - investigate before proceeding.
+**Verification is yours and is not delegated.** The lenses report; you decide. Verifying a finding means going to the location it cites and establishing whether the bad outcome actually occurs there - following the callers, checking the guards upstream, reading the file the claim depends on. That is reading, and it is the reading worth your context, because it is bounded by the finding instead of by the deliverable. When a single finding needs more tracing than it is worth, delegate that tracing and verify what comes back. {MANAGER_SUBAGENT_GUIDANCE}
 
-**Investigation scope:** Investigate directly for contained checks; use a subagent for context-intensive issues. When scope is unclear, prefer subagent to preserve Manager context. When a subagent returns findings, verify critical claims by reading the key files it references before acting on them. {MANAGER_SUBAGENT_GUIDANCE}
+**The four outcomes.** Triage routes each group of findings into a bucket, and the buckets are the outcomes - the same four names, so nothing is translated between the two. There is no fifth:
 
-**The four outcomes.** Every review ends in exactly one of these, and there is no fifth:
+- *accept* - nothing actionable survived verification. The Task stands and the next Tasks proceed.
+- *follow-up* - the Task goes back with refined instructions, to its own session per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction, carrying the group's findings. If the Worker also left changes uncommitted, say so in the follow-up.
+- *plan* - the work is in scope but the planning documents are wrong about it, so they change per §3.4 Planning Document Modification. Deficiencies discovered in previously-Done work land here too: the original Task stays Done, and a new Task is created through Plan modification per §2.3 Planning Document Modification Standards, referencing the original, carrying the discovery context, and stating what needs correcting. Decide a cascade of this size with the User.
+- *defer* - the finding is real but outside what the Spec set out to build. It is recorded where a backlog can outlive the session, per §3.6 Deferral, citing the finding's `id`.
 
-- *accept* - nothing actionable was found. The Task stands and the next Tasks proceed.
-- *follow-up* - the same Task goes back with refined instructions, to its own session per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction. If the Worker also left changes uncommitted, say so in the follow-up.
-- *replan* - the work is in scope but the planning documents are wrong about it, so they change per §3.4 Planning Document Modification. Deficiencies discovered in previously-Done work land here too: the original Task stays Done, and a new Task is created through Plan modification per §2.3 Planning Document Modification Standards, referencing the original, carrying the discovery context, and stating what needs correcting.
-- *defer* - the work is real but outside what the Spec set out to build. It is recorded where a backlog can outlive the session, per §3.6 Deferral, and nothing about the current Task changes.
+A review whose groups routed to more than one bucket has more than one outcome, and each is carried out. The Task's own state follows the most demanding of them: a Task with any `follow-up` group is not Done.
 
-Choosing between *replan* and *defer* is a question about the Spec, not about effort: work the Spec's objective covers is replanned, work it does not is deferred. When a finding looks like both, it is usually two findings.
+Choosing between *plan* and *defer* is a question about the Spec, not about effort: work the Spec's objective covers is replanned, work it does not is deferred. When a finding looks like both, it is usually two findings.
 
 Small contained actions (follow-ups for isolated issues, minor planning document corrections) can be executed immediately during the review cycle - present findings to the User for awareness after acting. When changes are significant enough to affect project direction or scope, pause for User approval per §2.3 Planning Document Modification Standards.
 
@@ -139,33 +139,38 @@ Perform the following actions:
 2. Read the report from the Report Bus (`.apm/bus/<agent-slug>/report.md`).
 3. Stop the reporting session by its short id per §2.4 Session Coordination Standards.
 4. Check whether the report says the Task is unfinished with a continuation pending - a session that ran out of context part-way through. If so, verify the Handoff Log exists and note it in Worker tracking. The Task is not Done: launch a replacement session for it rather than reviewing it as complete. No dependency context changes, because every Task already receives full context for every dependency per `{GUIDE_PATH:task-assignment}` §2.1 Dependency Context Standards.
-5. Check for auto-compaction indication - a Worker that recovered from auto-compaction notes it in the Task Report. If detected, update Worker tracking Notes in the Tracker (e.g., "auto-compacted, recovered") and weigh the log's account a little more carefully, since part of it is reconstructed rather than first-hand.
+5. Check for auto-compaction indication - a Worker that recovered from auto-compaction notes it in the Task Report. If detected, update Worker tracking Notes in the Tracker (e.g., "auto-compacted, recovered") and say so in `context.md` when staging, so the lenses know part of the Task Log's account is reconstructed rather than first-hand.
 6. Update dispatch tracking: mark this Worker as available, note completed Task(s) for readiness assessment.
 7. Merge completed branch per §2.5 Merge Standards if dependent Tasks need it.
 
-### 3.2 Task Log Review
+### 3.2 Delegated Review
 
-Execute after report processing. Present your assessment of the Task Log visibly in natural language: whether the claimed status is consistent with evidence, whether flags indicate coordination-relevant findings, and what the appropriate next action is.
+Execute after report processing. Stage the material, run the lenses on it, and triage what they return. Read `review-procedure.md` alongside this guide as the first step and follow it - it holds the staging layout, the lens selection table, the verdicts, and the triage order. Do not work from a summary of it, including this one.
 
 Perform the following actions:
-1. Read the Task Log at the path referenced in the Task Report.
-2. Check that the log carries the sections the format requires per §2.1 Task Log Review Standards. A log with no `## Claims` section is incomplete: return it for that section before reviewing anything else, and do not mark the Task Done on it.
-3. Interpret content per §2.1 Task Log Review Standards: status, flags, body sections. Assess consistency between status/flags and body content, and read `## Rule Deviations` when present.
-4. Continue to the review outcome.
+1. Confirm the Task Log carries a `## Claims` section per §2.1 Delegated Review Standards. A heading check is enough. When it is missing, the log is incomplete: return it to the Task's session as a follow-up and stop here.
+2. Read `review-procedure.md` in the references directory alongside `{SKILL_PATH:apm.manage}`. Everything below defers to it.
+3. Stage the review material in `.apm/review/<stage>-<task>/` per its material preparation section: the deliverable as a diff or a document, the Task Log copied verbatim, the acceptance criteria, and the context paths. Copy files rather than reading them through - staging is a file operation, not a reading step.
+4. Select the applicable lenses per its lens selection section and state the selection in one line. Not every lens applies to every deliverable, and one that does not apply still costs you: every finding it returns is verified in your context, and your context is re-read on every later turn. Add the external lenses the project declares under `## External lenses` in `{RULES_FILE}`.
+5. Launch the selected lenses in the same turn, awaited together, each receiving paths and never text. Carry the constraints its execution section lists in every launch prompt. Record any lens that failed, timed out, or returned nothing, and report the loss before the results.
+6. Triage per its triage section: discard grades, verify each finding yourself per §2.2 Review Outcome Standards, group by shared root cause, route each group to a bucket.
+7. Write `triage.md` in the staged directory, one row per finding, with the fields its record section names. Every finding gets a row, including the ones you judged `false`.
+8. When subagents are unavailable, use its fallback section instead of skipping the review: the prompts go to file self-contained, and you stop and ask the User to run them elsewhere.
 
 ### 3.3 Review Outcome
 
-Execute after Task Log review.
+Execute after triage. The buckets in `triage.md` are the outcomes; this step carries each of them out.
 
 Perform the following actions:
-1. Review findings from the Task Log per §2.2 Review Outcome Standards. Assess deliverables against the Task's objectives and validation criteria before determining the outcome. If version control is active and the Task was successful but changes remain uncommitted on the Task branch, commit on behalf following the conventions from Rules - no follow-up needed. If everything looks good, skip to step 3. If something needs attention, continue to step 2.
-2. Investigate and settle on one of the four outcomes per §2.2 Review Outcome Standards:
+1. Take the buckets from `triage.md`. If version control is active and the Task's work is sound but changes remain uncommitted on its branch, commit on its behalf following the conventions from Rules - that is not a follow-up.
+2. Carry out every bucket the triage produced, per §2.2 Review Outcome Standards:
    - *accept* - continue to step 3.
-   - *follow-up* - create a follow-up Task Prompt per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction and continue to step 3.
-   - *replan* - proceed to §3.4 Planning Document Modification, which returns to step 3.
-   - *defer* - proceed to §3.6 Deferral, which returns to step 3.
+   - *follow-up* - create a follow-up Task Prompt carrying that group's findings per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction and continue to step 3.
+   - *plan* - proceed to §3.4 Planning Document Modification, which returns to step 3.
+   - *defer* - proceed to §3.6 Deferral, which returns to step 3, citing the finding `id` from `triage.md`.
 3. Update the Tracker per §4.1 Task Tracking Format: mark completed Tasks as Done, reassess Waiting Tasks for readiness, update branch and session state. Execute pending merges per §2.5 Merge Standards before reassessing readiness, and release the sessions that earlier merges already freed. Assess whether the review yielded note-worthy context and add to working notes - both ephemeral coordination items and durable observations for later distillation. Remove stale working notes. Batch all changes from this review-dispatch cycle into a single Tracker edit.
-4. Brief the User on this Task per §2.4 Session Coordination Standards, then assess next action:
+4. Emit the Task Log into the knowledge layer when the project declares a consumer under `## Knowledge layer` in `{RULES_FILE}`, using `apm knowledge emit` with the Task Log path, the project name, and the Stage and Task numbers. When no consumer is declared, skip it: the step reports that nothing is declared and carries on.
+5. Brief the User per §2.4 Session Coordination Standards. Cover what the Worker produced, which lenses ran and which failed, the findings by bucket with your verdicts, what was emitted, and what happens next. The brief is where the review becomes visible - `triage.md` is the record, not the report. Then assess next action:
    - If all Stage Tasks are Done and merged, collapse Stage per §4.1 Task Tracking Format and proceed to §3.5 Stage Summary Creation.
    - If Tasks are Ready, proceed to `{GUIDE_PATH:task-assignment}` §3.1 Dispatch Assessment in the same turn.
    - If no Tasks are Ready but sessions are still working, state the wait per §2.4 Session Coordination Standards and end the turn.
@@ -188,7 +193,7 @@ Perform the following actions:
 Execute when all Tasks in a Stage are Done. A Task is Done when the review concludes with no outstanding follow-ups. Write the Stage summary once, after all follow-up cycles finish.
 
 Perform the following actions:
-1. Enumerate Task Logs for the completed Stage using a directory listing, e.g., `ls .apm/memory/stage-<NN>/` (or platform equivalent). Synthesize from logs already reviewed during individual Task Reviews - re-reading is not needed when logs are unchanged and still in context.
+1. Enumerate Task Logs for the completed Stage using a directory listing, e.g., `ls .apm/memory/stage-<NN>/` (or platform equivalent), for the reference list at the end of the summary. Synthesize the summary itself from what passed through your own context during the Stage - the triage records, the working notes, and the decisions you took - not by reading the logs now. The logs are the deeper detail the summary points at, which is why the list exists.
 2. Assess whether Stage verification is needed per §2.8 Stage Verification Standards. When warranted, verify before proceeding.
 3. Distill working notes per §2.7 Note-Taking Standards: observations with lasting impact on future work become Memory notes in the Index, Stage-specific observations become Stage summary prose. Keep working notes that will be needed in the next Stage. When this review immediately triggers Stage summary (last Task in Stage), observations from this review can be written directly to their destinations rather than first passing through working notes.
 4. Synthesize Stage-level observations and append a Stage summary to the Index per §4.3 Index Format. The Index structure (Memory notes above Stage summaries) enables steps 3 and 4 as a single contiguous edit.
@@ -261,17 +266,17 @@ completed_at: <datetime>  # set by Manager at project completion - absence means
 
 **Tracker sections:**
 - *`## Task Tracking`:* Per-Stage Task state per §4.1 Task Tracking Format.
-- *`## Worker Tracking`:* Records Worker states and coordination notes. Update it when a Worker is first dispatched to, when a session reports a pending continuation, and when auto-compaction recovery is reported.
+- *`## Worker Tracking`:* One row per Worker, carrying coordination notes about that domain. It counts nothing: a Worker's sessions are per-Task and ephemeral, so there is no instance number to keep. Update it when a session reports a pending continuation, when auto-compaction recovery is reported, or when something about the domain is worth carrying between Stages.
 - *`## Version Control`:* Per-repository base branch, branch convention, and commit convention per `{GUIDE_PATH:task-assignment}` §4.4 Tracker VC Entry Format. Branch and session state are tracked per-Task in the Task table.
 - *`## Deferred`:* Work found and deliberately not done, per §4.6 Deferred Table Format.
 - *`## Working Notes`:* Ephemeral coordination context per §2.7 Note-Taking Standards. Contents are inserted and removed as context evolves. This is also where your own rule deviations go: when you do something a rule in the APM_RULES block forbids, write the same three columns a Worker writes in its Task Log - what was violated, why it was necessary, and which simpler alternative was rejected and why - before doing it. The Worker's table is in its log because that is what the review reads; yours is here because that is what an incoming Manager reads.
 
 **Worker Tracking Table:**
 ```markdown
-| Agent | Instance | Notes |
-|-------|----------|-------|
-| frontend-agent | 2 | Task 2.4 relieved mid-Task; replacement session finished it |
-| backend-agent | 1 | |
+| Agent | Notes |
+|-------|-------|
+| frontend-agent | Task 2.4 relieved mid-Task; replacement session finished it |
+| backend-agent | |
 ```
 
 ### 4.3 Index Format
