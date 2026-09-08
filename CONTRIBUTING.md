@@ -6,11 +6,11 @@ Thank you for considering contributing to APM! Your contributions help build a b
 
 ### Reporting Bugs & Workflow Issues
 
-- **Search existing issues** first: [GitHub Issues](https://github.com/sdi2200262/agentic-project-management/issues)
+- **Search existing issues** first: [GitHub Issues](https://github.com/AlvaroTena/apm-strata/issues)
 - **For new bug reports**, include:
   - APM CLI version (run `apm --version` or `npm list -g agentic-pm`)
   - Node.js and npm versions (run `node --version` and `npm --version`)
-  - AI assistant used (Claude Code, Cursor, Copilot, Antigravity, or OpenCode)
+  - Claude Code version (`claude --version`)
   - Agent type experiencing issues (Planner, Manager, or Worker)
   - Step-by-step reproduction of the issue (if possible, otherwise a detailed description)
   - Expected vs actual behavior
@@ -19,14 +19,14 @@ Thank you for considering contributing to APM! Your contributions help build a b
 
 - Workflow improvements: procedures, coordination patterns, memory system optimizations
 - Documentation improvements: clearer explanations, additional examples, missing use cases
-- Platform support: better integration with supported assistants
+- Platform support: better use of Claude Code's subagents, hooks and background sessions
 - Build system: placeholder additions, platform-specific enhancements
 
 ### High-Priority Areas
 
 **Workflow Testing & Feedback**
-- Run APM sessions on real projects and report issues via [GitHub Issues](https://github.com/sdi2200262/agentic-project-management/issues)
-- Test across different assistants and model combinations
+- Run APM sessions on real projects and report issues via [GitHub Issues](https://github.com/AlvaroTena/apm-strata/issues)
+- Test across model and effort combinations
 - Identify edge cases in coordination, Handoff, and session continuation
 
 **Template Standards**
@@ -36,7 +36,7 @@ Thank you for considering contributing to APM! Your contributions help build a b
 
 **Standalone Skills**
 - The `skills/` directory contains standalone skills installed independently from APM bundles
-- Current skills: [apm-assist](skills/apm-assist/) (APM assistant, migration, docs), [apm-customization](skills/apm-customization/) (repo customization)
+- Current skills: [apm-customization](skills/apm-customization/) (repo customization)
 - Contributions welcome for new standalone skills that complement the APM workflow
 
 ### Community Contributions
@@ -47,7 +47,7 @@ Thank you for considering contributing to APM! Your contributions help build a b
 
 ### Community Extensions
 
-APM officially supports Claude Code, Codex CLI, Cursor, GitHub Copilot, Antigravity, and OpenCode. For other assistants (e.g. Windsurf, Kilo Code, Roo Code), community members may develop and maintain unofficial extensions.
+This fork targets Claude Code only. The guides assume subagents, background sessions and hooks, so there is no portable subset to extend to another assistant; a port would be a fork of this fork.
 
 Community extensions are not officially supported, may lag behind releases, and should be tested thoroughly before use. If you're interested in developing or maintaining an extension, please open an issue to discuss.
 
@@ -57,8 +57,8 @@ Community extensions are not officially supported, may lag behind releases, and 
 
 1. **Fork and clone the repository:**
    ```bash
-   git clone https://github.com/YOUR-USERNAME/agentic-project-management.git
-   cd agentic-project-management
+   git clone https://github.com/YOUR-USERNAME/apm-strata.git
+   cd apm-strata
    ```
 
 2. **Install dependencies:**
@@ -77,13 +77,13 @@ APM uses a build system that processes source templates into platform-specific b
 
 #### File Locations
 
-- **Templates (commands, guides, skills, agents):** Edit files in `templates/`. This is the core deliverable. All template changes must comply with `templates/_standards/`.
+- **Templates (skills, guides, agents, hooks):** Edit files in `templates/`. This is the core deliverable. All template changes must comply with `templates/_standards/`.
 - **Build system:** Edit files in `build/` for processors, config, and generators.
 - **CLI source:** Edit files in `src/` for CLI command behavior.
 - **Standalone skills:** Edit files in `skills/` for independently installable skills.
-- **Documentation:** Docs live in a separate repository: [apm-website](https://github.com/sdi2200262/apm-website) (`docs/` directory). Video walkthroughs covering the v1 workflow are needed. See the apm-website README for details.
+- **Documentation:** Docs live in this repository. The README covers the design, `docs/` covers formats such as spec deltas, and `skills/apm-customization/` orients an agent working on the templates themselves.
 
-**Important:** Template changes follow a top-down propagation. Workflow changes start in `WORKFLOW.md`, then propagate to affected commands, guides, and skills. See the change propagation rules in [CLAUDE.md](CLAUDE.md).
+**Important:** Template changes follow a top-down propagation. Workflow changes start in `WORKFLOW.md`, then propagate to affected skills, guides, agents and hooks. See the change propagation rules in [CLAUDE.md](CLAUDE.md).
 
 #### Building
 
@@ -99,7 +99,7 @@ This processes templates and creates platform-specific bundles in `dist/`.
 
 **For template changes** (`templates/`):
 - Run `npm run build:release` to verify the build completes
-- Test with actual AI assistants in a real project
+- Test in a real project with Claude Code
 - Include example interactions or observations in your PR to speed review
 
 **For CLI or build system changes** (`src/` or `build/`):
@@ -129,8 +129,8 @@ APM uses Mozilla Public License 2.0 (MPL-2.0). By contributing, you agree that:
 ## Questions & Discussion
 
 - Technical questions: open a GitHub issue
-- General inquiries: reach out on Discord at `cobuter_man`
-- Collaboration: mention @sdi2200262 in relevant issues or PRs
+- General inquiries: open a discussion or an issue on [this repository](https://github.com/AlvaroTena/apm-strata/issues)
+- Collaboration: mention @AlvaroTena in relevant issues or PRs
 
 ---
 

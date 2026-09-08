@@ -434,6 +434,16 @@ below parse is:
 Confirmed means the verdict is `high`, `medium` or `low`. Rows verdicted `false` or
 `maybe-false` are excluded from every count.
 
+**Rows the coordinator wrote are excluded too.** The coordinator may add findings of its
+own to `triage.md` under the reserved `lens` value `manager`. That is deliberate: the
+triage is its artifact, and someone who spots a real defect should not have to launder it
+through a lens to record it. But those rows came from no lens, so counting them would
+contaminate the measurement in both directions - inflating the union, and crediting or
+denying a lens work it never did. **The overlap counts only rows produced by lenses**, and
+both scripts below drop every reserved value before anything else. If the review design
+adds another reserved value later, add it to `RESERVED` in both scripts, or the number
+silently starts measuring something else.
+
 ## Baseline
 
 **Two lenses from the same provider**, identical prompt, separate sessions. This is
@@ -540,6 +550,11 @@ import csv, random, sys
 
 CONFIRMED = {"high", "medium", "low"}
 
+# Lens values that name something other than a lens. The coordinator may add findings of
+# its own to the triage under "manager"; they are real findings but they came from no
+# lens, so they cannot enter an overlap between lenses.
+RESERVED = {"manager"}
+
 
 def read_table(path):
     rows, header = [], None
@@ -557,7 +572,11 @@ def read_table(path):
     return rows
 
 
-findings = [r for r in read_table(sys.argv[1]) if r["verdict"].lower() in CONFIRMED]
+def from_a_lens(row):
+    return row["verdict"].lower() in CONFIRMED and row["lens"].strip().lower() not in RESERVED
+
+
+findings = [r for r in read_table(sys.argv[1]) if from_a_lens(r)]
 lenses = sorted({r["lens"] for r in findings})
 if len(lenses) != 2:
     sys.exit(f"expected exactly 2 lenses in the triage table, found {lenses}")
@@ -603,6 +622,10 @@ from collections import defaultdict
 
 CONFIRMED = {"high", "medium", "low"}
 
+# See triage-pairs.py: rows the coordinator wrote itself carry a reserved lens value and
+# are not part of any lens's output.
+RESERVED = {"manager"}
+
 
 def read_table(path):
     rows, header = [], None
@@ -620,8 +643,11 @@ def read_table(path):
     return rows
 
 
-findings = {r["id"]: r for r in read_table(sys.argv[1])
-            if r["verdict"].lower() in CONFIRMED}
+def from_a_lens(row):
+    return row["verdict"].lower() in CONFIRMED and row["lens"].strip().lower() not in RESERVED
+
+
+findings = {r["id"]: r for r in read_table(sys.argv[1]) if from_a_lens(r)}
 lenses = sorted({r["lens"] for r in findings.values()})
 per_lens = {l: {i for i, r in findings.items() if r["lens"] == l} for l in lenses}
 

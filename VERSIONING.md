@@ -1,18 +1,18 @@
 # APM Versioning Strategy
 
-APM uses a decoupled versioning system with two independent release tracks: the **CLI tool** (distributed via NPM) and **APM template releases** (distributed via GitHub Releases). Both tracks follow Semantic Versioning and share the same major version to ensure compatibility.
+APM uses a decoupled versioning system with two independent release tracks: the **CLI tool** (installed from git) and **APM template releases** (distributed via GitHub Releases). Both tracks follow Semantic Versioning and share the same major version to ensure compatibility.
 
 ## Versioning Tracks
 
-### 1. APM CLI (`agentic-pm` on NPM)
+### 1. APM CLI (`agentic-pm`, installed from git)
 
-The CLI source code lives in `src/`. Changes to this directory trigger new NPM releases. The CLI handles template management via `apm init`, `apm custom`, `apm update`, `apm archive`, `apm add`, `apm remove`, and `apm status`.
+The CLI source code lives in `src/`. Changes to this directory ship on the next tag. The CLI handles template management via `apm init`, `apm custom`, `apm update`, `apm archive`, `apm add`, `apm remove`, and `apm status`.
 
-Pre-release versions use the `-test-N` suffix (e.g., `1.0.0-test-1`). NPM's `latest` tag always points to the most recent stable release, so `npm install agentic-pm` installs stable versions only. Pre-releases require explicit installation: `npm install agentic-pm@0.5.0-test-1`.
+The CLI is installed from git rather than from the NPM registry: `npm install -g AlvaroTena/apm-strata`. The package keeps upstream's name, `agentic-pm`, and is not renamed, so installing it replaces an upstream CLI of the same name.
 
 ### 2. APM Template Releases (GitHub Releases)
 
-Templates live in `templates/` and are processed by the build system in `build/`. Running `npm run build:release` generates ZIP bundles for each supported AI assistant plus an `apm-release.json` manifest. These artifacts are published as GitHub Releases.
+Templates live in `templates/` and are processed by the build system in `build/`. Running `npm run build:release` generates the `claude.zip` bundle plus an `apm-release.json` manifest. These artifacts are published as GitHub Releases.
 
 Template releases are fully decoupled from CLI versioning. The release workflow auto-increments patch versions (1.0.0 → 1.0.1) based on the latest stable release tag. For minor/major bumps, provide a version override when triggering the workflow.
 
@@ -42,4 +42,4 @@ For official installs, `apm update` fetches the latest compatible release. For c
 
 ## Metadata Tracking
 
-Installed template information is stored in `.apm/metadata.json`, including the source (official or custom), repository, release version, installed assistants, and timestamps. This allows `apm update` to determine the current state and available updates.
+Installed template information is stored in `.apm/metadata.json`, including the source (official or custom), repository, release version, installed target, and timestamps. This allows `apm update` to determine the current state and available updates.

@@ -7,6 +7,121 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.1.0] - Unreleased
+
+The `apm-strata` fork: Claude Code only, roles as skills, native dispatch, and review by
+adversarial lenses. See the README for the design and the provenance of each adapted
+mechanic.
+
+### Breaking Changes
+
+* **Claude Code only.** Every other target was removed from the build, including the
+  Antigravity support added but never released under `[1.0.2]` below. A release is now a
+  single `claude.zip` bundle plus its `apm-release.json` manifest. Guides may assume
+  subagents, background sessions and hooks, which is what makes the rest of this list
+  possible.
+
+* **Commands became skills.** The nine numbered slash commands were replaced by nine named
+  skills: `/apm.plan`, `/apm.manage`, `/apm.work`, `/apm.task`, `/apm.review`,
+  `/apm.handoff.manager`, `/apm.handoff.worker`, `/apm.summarize` and `/apm.recover`.
+  `templates/commands/` no longer exists.
+
+* **The rules file moved to `CLAUDE.local.md`.** Rules are local project state, and the
+  platform loads `CLAUDE.local.md` with the same discovery it gives `CLAUDE.md`, so a
+  project can version its own `CLAUDE.md` without carrying the `APM_RULES` block. An
+  installation created before this release keeps its block in `CLAUDE.md`; the planning
+  procedure moves it the next time it runs.
+
+* **The CLI installs from git, not from npm.** The package keeps upstream's name,
+  `agentic-pm`, and is not renamed. `npm install -g AlvaroTena/apm-strata`.
+
+* **`apm-assist` was removed.** It described the upstream command set and migration from
+  v0.5.x, neither of which applies to this fork.
+
+### Added
+
+* **Native dispatch.** The Manager dispatches Workers directly instead of asking a human to
+  carry messages between chats. Approval gates stay where they were; the courier role goes.
+
+* **Review by lenses.** Findings come from five context-free subagents run in parallel and
+  blind to each other - adversarial, edge case, verification gap, acceptance and editorial -
+  against prepared material that isolates the author's claims. The coordinator does not read
+  the artifact; it triages verified findings. Findings carry exactly four fields and no
+  severity.
+
+* **Two hooks.** A `PreToolUse` dispatch gate that blocks a write to a Task Bus file while a
+  checklist has an unchecked box or the Task is blocked by an open deferred item, and a
+  `PreCompact` reminder that points a compacted agent at the recovery skill. `apm init`,
+  `apm custom`, `apm add` and `apm update` declare them in `.claude/settings.json`;
+  `apm remove` withdraws them, leaving hooks of your own untouched.
+
+* **Spec deltas.** `apm delta validate` checks `ADDED` / `MODIFIED` / `REMOVED` requirement
+  blocks against the spec they change, enforcing four rules. The format comes from OpenSpec;
+  the validator is this repository's own, because the external one exited zero on an
+  unmatched requirement key. Documented in `docs/deltas.md`.
+
+* **Knowledge layer.** `apm knowledge init`, `apm knowledge emit` and `apm knowledge audit`
+  scaffold a knowledge substrate, ingest a Task Log into it as claims with provenance, and
+  audit what is there. The consumer is pluggable; the command knows nothing tool-specific.
+
+* **Bounded ambiguity resolution** in context gathering: a Clear / Partial / Missing scan, a
+  ceiling of five questions selected by impact, one question at a time, integrated after each
+  answer, closing with a coverage table.
+
+* **Requirement quality checklists**, whose tick means a reviewer confirmed the quality of a
+  requirement and never that the implementation is done. No agent ticks a box, including one
+  it is sure about. The dispatch gate reads the boxes and does not write them.
+
+* **A size guard** before Plan approval that proposes narrowing the objective when it counts
+  more than one independent deliverable, and records the rejected split when the human keeps
+  the full scope.
+
+* **A long-horizon backlog** that survives session archival, and deferred entries whose gate
+  blocks dispatch until they are cleared.
+
+* **An archive explorer subagent** for pulling context out of archived sessions.
+
+* **A test suite**: 239 tests over the build, the CLI, the hooks and the template contracts,
+  where there was none.
+
+* **`docs/measurements.md`**, two measurement protocols for design claims that are currently
+  argued rather than measured.
+
+### Changed
+
+* **Rules are loaded as a step.** Ten procedural files now begin by reading the `APM_RULES`
+  block rather than relying on it having been in context since the start. The block still
+  lives in exactly one place; no guide copies a rule.
+
+* **Writing the rules block replaces instead of appending.** Both candidate rules files are
+  searched, so a block left behind by an archived session or a renamed file cannot end up
+  duplicated with the wrong one winning.
+
+* **The build fails loudly.** Unknown frontmatter keys are warned about, and the surfaces that
+  used to fail silently now fail with a message that names what is wrong.
+
+### Removed
+
+* Every non-Claude build target, `templates/commands/`, the `apm-assist` skill, and the
+  placeholder and error surfaces nothing reached.
+
+### Upgrade Notes
+
+Two things an existing installation does not get on its own.
+
+* **The hook declarations do not arrive until you reinstall or update.** The bundle carries
+  the hook scripts, but what makes the platform run them is a declaration in
+  `.claude/settings.json`, written by the CLI. An installation made before this release has
+  the scripts and no declaration, and nothing says so: the dispatch gate is simply not armed.
+  Run `apm update` (or reinstall) to have the declarations merged in. Hooks of your own in
+  that file are left alone.
+
+* **The rules block is looked for in a different file.** Agents now read `APM_RULES` from
+  `CLAUDE.local.md`, while an installation made before this release has it in `CLAUDE.md`.
+  The planning procedure searches both and moves the block to the destination the next time
+  it runs, deleting the duplicate, so this resolves itself - but until it does, an agent
+  started against the old file finds no block.
+
 ## [1.0.2] - Unreleased
 
 ### Breaking Changes
