@@ -107,10 +107,6 @@ function displayHelp() {
   console.log('');
   console.log(chalk.gray('Learn more:') + ' ' + chalk.blue.underline(OFFICIAL_REPO_URL));
   console.log('');
-  console.log(chalk.gray('New to APM? The apm-assist skill gives your AI assistant full knowledge of'));
-  console.log(chalk.gray('the framework so it can answer questions and help with migration.'));
-  console.log(chalk.gray('See:') + ' ' + chalk.blue.underline(`${OFFICIAL_REPO_URL}/tree/main/skills`));
-  console.log('');
 }
 
 const program = new Command();
