@@ -39,7 +39,12 @@ export const CLIErrorCode = {
   UNKNOWN_CONSUMER: 'UNKNOWN_CONSUMER',
   UNSUPPORTED_PLATFORM: 'UNSUPPORTED_PLATFORM',
   PREREQUISITE_MISSING: 'PREREQUISITE_MISSING',
-  KNOWLEDGE_SETUP_FAILED: 'KNOWLEDGE_SETUP_FAILED'
+  KNOWLEDGE_SETUP_FAILED: 'KNOWLEDGE_SETUP_FAILED',
+  TASK_LOG_INVALID: 'TASK_LOG_INVALID',
+
+  // Delta errors
+  DELTA_NOT_FOUND: 'DELTA_NOT_FOUND',
+  DELTA_INVALID: 'DELTA_INVALID'
 };
 
 /**
@@ -262,6 +267,50 @@ export class CLIError extends Error {
       `Knowledge layer setup failed during ${step}: ${reason}`,
       CLIErrorCode.KNOWLEDGE_SETUP_FAILED,
       { step, reason }
+    );
+  }
+
+  /**
+   * Creates an invalid task log error.
+   *
+   * @param {string} file - Task log path.
+   * @param {string} reason - What is wrong with it.
+   * @returns {CLIError} Formatted error instance.
+   */
+  static taskLogInvalid(file, reason) {
+    return new CLIError(
+      `Cannot read claims from ${file}: ${reason}`,
+      CLIErrorCode.TASK_LOG_INVALID,
+      { file, reason }
+    );
+  }
+
+  /**
+   * Creates a delta not found error.
+   *
+   * @param {string} target - Path that was searched.
+   * @param {string} reason - Why nothing was found.
+   * @returns {CLIError} Formatted error instance.
+   */
+  static deltaNotFound(target, reason) {
+    return new CLIError(
+      `No delta to validate at ${target}: ${reason}`,
+      CLIErrorCode.DELTA_NOT_FOUND,
+      { target, reason }
+    );
+  }
+
+  /**
+   * Creates a delta validation error.
+   *
+   * @param {number} count - Number of violations found.
+   * @returns {CLIError} Formatted error instance.
+   */
+  static deltaInvalid(count) {
+    return new CLIError(
+      `Delta validation failed with ${count} violation(s)`,
+      CLIErrorCode.DELTA_INVALID,
+      { count }
     );
   }
 
