@@ -69,6 +69,19 @@ When `{SKILL_NAME:task}` or `{SKILL_NAME:review}` accept an `[agent-id]` argumen
 
 Agent slugs are derived from the Worker names listed in the Plan Workers field by converting to lowercase and replacing spaces with hyphens. Examples: `Frontend Agent` → `frontend-agent`, `Backend Agent` → `backend-agent`. The Manager's own directory uses the slug `manager`.
 
+### 4.4 Trigger Messages
+
+A dispatched Worker runs in its own background session. Two fixed texts move work between the coordinator and that session, and nothing else travels this way:
+
+- Coordinator to Worker: `APM: task available at .apm/bus/<slug>/task.md`
+- Worker to coordinator: `APM: report available at .apm/bus/<slug>/report.md`
+
+**The bus carries the content; the trigger only points at it.** A trigger never contains a Task Prompt, a report, a finding, or an instruction. It names a path. The receiving session reads that file and acts on what it finds there.
+
+**A trigger never asks the receiving session to run a skill.** Role skills are invocable only by a person: a session asked to invoke one refuses, and the cycle stops with nothing to show for it. Name the bus file instead.
+
+**Sessions are addressed by name,** in the form `<slug>-<stage>.<task>`. A session's return address changes when it is resumed, so an address captured from an earlier message is not reusable.
+
 ---
 
 **End of Skill**

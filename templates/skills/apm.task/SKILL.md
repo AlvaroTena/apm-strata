@@ -7,9 +7,13 @@ argument-hint: "[agent-id]"
 
 # APM {VERSION} - Worker Check Tasks Skill
 
-Check your Task Bus for pending Task Prompts. If you are a Planner, Manager, or non-APM agent, concisely decline and take no action. This skill replaces manual file referencing - you resolve your bus path from your registered identity or from the provided `[agent-id]` argument.
+Read your Task Bus and execute what is waiting there.
 
-Accepts an optional `[agent-id]` argument. If registered, ignore it (bus path already known). If not registered, the argument is required to resolve identity.
+**This is a fallback, not the normal path.** Normally a trigger from the coordinator names your Task Bus and starts the work. Because the bus holds the prompt and the trigger only points at it, a lost trigger loses nothing: the prompt is still there and this retrieves it.
+
+If you are a Planner, Manager, or non-APM agent, concisely decline and take no action.
+
+Accepts an optional `[agent-id]` argument. If registered, ignore it - the bus path is already known. If not registered, the argument is required to resolve identity.
 
 **Procedure:**
 1. Determine registration state:
