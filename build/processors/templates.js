@@ -10,7 +10,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import logger from '../utils/logger.js';
 import { findTemplateFiles } from '../utils/files.js';
-import { assertValidFrontmatter } from './frontmatter.js';
+import { assertValidFrontmatter, findUnknownFrontmatterKeys } from './frontmatter.js';
 import { replacePlaceholders } from './placeholders.js';
 import { generateReleaseManifest } from '../generators/manifest.js';
 import { createZipArchive } from '../generators/archive.js';
@@ -82,7 +82,15 @@ async function processTemplate(template, options) {
   // Skills and agents declare themselves in frontmatter; guides and hooks do not
   const isSkillEntry = category === 'skills' && path.basename(templatePath) === 'SKILL.md';
   if (isSkillEntry || category === 'agents') {
-    assertValidFrontmatter(content, path.relative(sourceDir, templatePath));
+    const relativePath = path.relative(sourceDir, templatePath);
+    const frontmatter = assertValidFrontmatter(content, relativePath);
+
+    // A key the platform does not recognise is ignored silently at runtime, so
+    // this warning is the only signal that a field does nothing. It never fails
+    // the build: the reference list dates faster than the templates do.
+    for (const key of findUnknownFrontmatterKeys(frontmatter, category)) {
+      logger.warn(`${relativePath}: unknown frontmatter key "${key}"`);
+    }
   }
 
   await fs.writeFile(outputPath, replacePlaceholders(content, { version, target }));

@@ -56,11 +56,13 @@ export async function makeTempDir() {
  * @param {string} options.sourceDir - Templates directory to build from.
  * @param {string} options.outputDir - Temporary directory to build into.
  * @param {Object} options.target - Target configuration.
- * @returns {Promise<{entries: Object[], zipPath: string}>} Archive entries and path.
+ * @returns {Promise<{entries: Object[], zipPath: string, logs: string[]}>} Archive
+ *   entries, archive path, and the build log lines that were captured.
  */
 export async function runBuild({ sourceDir, outputDir, target }) {
   const log = console.log;
-  console.log = () => {};
+  const logs = [];
+  console.log = (...args) => logs.push(args.join(' '));
 
   try {
     await buildAll({
@@ -72,7 +74,7 @@ export async function runBuild({ sourceDir, outputDir, target }) {
   }
 
   const zipPath = path.join(outputDir, target.bundleName);
-  return { entries: new AdmZip(zipPath).getEntries(), zipPath };
+  return { entries: new AdmZip(zipPath).getEntries(), zipPath, logs };
 }
 
 /**

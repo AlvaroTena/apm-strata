@@ -8,7 +8,9 @@ import path from 'path';
 import {
   parseFrontmatter,
   validateFrontmatter,
-  assertValidFrontmatter
+  assertValidFrontmatter,
+  findUnknownFrontmatterKeys,
+  KNOWN_FRONTMATTER_KEYS
 } from '../../build/processors/frontmatter.js';
 import {
   fixtureTemplates,
@@ -110,6 +112,53 @@ describe('assertValidFrontmatter', () => {
   });
 });
 
+describe('findUnknownFrontmatterKeys', () => {
+  it('accepts every key the platform recognises for a skill', () => {
+    const frontmatter = Object.fromEntries(
+      KNOWN_FRONTMATTER_KEYS.skills.map(key => [key, 'value'])
+    );
+
+    expect(findUnknownFrontmatterKeys(frontmatter, 'skills')).toEqual([]);
+  });
+
+  it('accepts every key the platform recognises for an agent', () => {
+    const frontmatter = Object.fromEntries(
+      KNOWN_FRONTMATTER_KEYS.agents.map(key => [key, 'value'])
+    );
+
+    expect(findUnknownFrontmatterKeys(frontmatter, 'agents')).toEqual([]);
+  });
+
+  it('reports a key the platform would ignore without saying anything', () => {
+    const frontmatter = { name: 'apm.sample', description: 'A skill.', agents: 'apm-lens-adversarial' };
+
+    expect(findUnknownFrontmatterKeys(frontmatter, 'skills')).toEqual(['agents']);
+  });
+
+  it('reports several unknown keys in file order', () => {
+    const frontmatter = { name: 'x', invented: 1, description: 'y', alsoInvented: 2 };
+
+    expect(findUnknownFrontmatterKeys(frontmatter, 'skills')).toEqual(['invented', 'alsoInvented']);
+  });
+
+  it('does not carry skill keys over to agents, or the reverse', () => {
+    // The two surfaces disagree on casing and on which fields exist at all.
+    expect(findUnknownFrontmatterKeys({ tools: 'Read' }, 'skills')).toEqual(['tools']);
+    expect(findUnknownFrontmatterKeys({ 'allowed-tools': 'Read' }, 'agents')).toEqual(['allowed-tools']);
+    expect(findUnknownFrontmatterKeys({ disallowedTools: 'Bash' }, 'skills')).toEqual(['disallowedTools']);
+    expect(findUnknownFrontmatterKeys({ 'disallowed-tools': 'Bash' }, 'agents')).toEqual(['disallowed-tools']);
+  });
+
+  it('stays silent for a category with no reference list', () => {
+    expect(findUnknownFrontmatterKeys({ anything: true }, 'guides')).toEqual([]);
+  });
+
+  it('tolerates absent frontmatter', () => {
+    expect(findUnknownFrontmatterKeys(undefined, 'skills')).toEqual([]);
+    expect(findUnknownFrontmatterKeys({}, 'skills')).toEqual([]);
+  });
+});
+
 describe('build failures caused by invalid frontmatter', () => {
   let temp;
   let source;
@@ -178,6 +227,63 @@ describe('build failures caused by invalid frontmatter', () => {
         target: await readTarget()
       })
     ).rejects.toThrowError(/missing required frontmatter field "name" in agents\/sample-agent\.md/);
+  });
+
+  it('warns without failing when a skill declares a key the platform ignores', async () => {
+    await fs.writeFile(
+      path.join(source, 'skills', 'apm.sample', 'SKILL.md'),
+      [
+        '---',
+        'name: apm.sample',
+        'description: A skill declaring a field that does not exist.',
+        'agents: apm-lens-adversarial',
+        '---',
+        '',
+        '# Sample'
+      ].join('\n')
+    );
+
+    const { logs } = await runBuild({
+      sourceDir: source,
+      outputDir: path.join(temp.dir, 'out'),
+      target: await readTarget()
+    });
+
+    // The build has to finish: the reference list dates faster than templates do.
+    expect(logs.join('\n')).toContain('skills/apm.sample/SKILL.md: unknown frontmatter key "agents"');
+  });
+
+  it('warns for an agent key that belongs to the skill surface', async () => {
+    await fs.writeFile(
+      path.join(source, 'agents', 'sample-agent.md'),
+      [
+        '---',
+        'name: sample-agent',
+        'description: An agent using the skill spelling of a tools field.',
+        'allowed-tools: Read',
+        '---',
+        '',
+        '# Agent'
+      ].join('\n')
+    );
+
+    const { logs } = await runBuild({
+      sourceDir: source,
+      outputDir: path.join(temp.dir, 'out'),
+      target: await readTarget()
+    });
+
+    expect(logs.join('\n')).toContain('agents/sample-agent.md: unknown frontmatter key "allowed-tools"');
+  });
+
+  it('stays quiet when every declared key is recognised', async () => {
+    const { logs } = await runBuild({
+      sourceDir: source,
+      outputDir: path.join(temp.dir, 'out'),
+      target: await readTarget()
+    });
+
+    expect(logs.join('\n')).not.toContain('unknown frontmatter key');
   });
 
   it('does not validate skill support files that carry no frontmatter', async () => {
