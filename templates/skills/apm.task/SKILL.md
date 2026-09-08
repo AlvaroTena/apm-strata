@@ -1,11 +1,13 @@
 ---
-command_name: check-tasks
-description: Deliver a Task Prompt to an APM Worker.
+name: apm.task
+description: Delivers a pending Task Prompt to the Worker whose chat this is.
+disable-model-invocation: true
+argument-hint: "[agent-id]"
 ---
 
-# APM {VERSION} - Worker Check Tasks Command
+# APM {VERSION} - Worker Check Tasks Skill
 
-Check your Task Bus for pending Task Prompts. If you are a Planner, Manager, or non-APM agent, concisely decline and take no action. This command replaces manual file referencing - you resolve your bus path from your registered identity or from the provided `[agent-id]` argument.
+Check your Task Bus for pending Task Prompts. If you are a Planner, Manager, or non-APM agent, concisely decline and take no action. This skill replaces manual file referencing - you resolve your bus path from your registered identity or from the provided `[agent-id]` argument.
 
 Accepts an optional `[agent-id]` argument. If registered, ignore it (bus path already known). If not registered, the argument is required to resolve identity.
 
@@ -14,7 +16,7 @@ Accepts an optional `[agent-id]` argument. If registered, ignore it (bus path al
    - If registered, resolve bus path from registration. Continue to step 3.
    - If not registered, `{ARGS}` is required. If no argument provided, inform User that an agent-id is required.
 
-2. Resolve agent-id (unregistered Workers only): resolve `{ARGS}` against `.apm/bus/` directory names per `{SKILL_PATH:apm-communication}` §4.2 Agent ID Resolution. Initialize per `{COMMAND_PATH:apm-3-initiate-worker}` §2 Initiation.
+2. Resolve agent-id (unregistered Workers only): resolve `{ARGS}` against `.apm/bus/` directory names per `{SKILL_PATH:apm-communication}` §4.2 Agent ID Resolution. Initialize per `{SKILL_PATH:apm.work}` §2 Initiation.
 
 3. Read Task Bus at `.apm/bus/<agent-slug>/task.md`.
    - If empty, inform User that no pending Task is available. Await next invocation.
@@ -24,4 +26,4 @@ Accepts an optional `[agent-id]` argument. If registered, ignore it (bus path al
 
 ---
 
-**End of Command**
+**End of Skill**

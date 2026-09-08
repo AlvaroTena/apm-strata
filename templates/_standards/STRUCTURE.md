@@ -1,6 +1,6 @@
 # APM Structure Standards
 
-This document defines the organizational structure for APM commands, guides, and skills - required sections, ordering, and document-level formatting. This is a development-time specification: agents do not read this file during runtime. The structural patterns defined here are implemented by template authors in commands, guides, and skills. Content presentation and writing conventions follow [`WRITING.md`](./WRITING.md). All terms are defined in [`TERMINOLOGY.md`](./TERMINOLOGY.md).
+This document defines the organizational structure for APM guides, skills, and agents - required sections, ordering, and document-level formatting. This is a development-time specification: agents do not read this file during runtime. The structural patterns defined here are implemented by template authors in guides, skills, and agents. Content presentation and writing conventions follow [`WRITING.md`](./WRITING.md). All terms are defined in [`TERMINOLOGY.md`](./TERMINOLOGY.md).
 
 ---
 
@@ -12,60 +12,55 @@ Different document types have different structural needs. This matrix defines th
 
 | Document Type | Structure Policy |
 | ------------- | ---------------- |
-| **Initiation commands** (`apm-1`, `apm-2`, `apm-3`) | Strict structure. Role declaration, initiation, core procedures, operating rules. |
-| **Utility commands** (`apm-4`, `apm-5`, `apm-8`) | Lightweight structure. Short trigger or standalone commands - full rigidity adds no clarity. |
-| **Handoff commands** (`apm-6`, `apm-7`) | Lightweight structure. Procedure, structural specs for artifacts. |
-| **Troubleshooting commands** (`apm-9`) | Lightweight structure. Recovery and diagnostic commands for workflow disruptions. |
+| **Initiation skills** (`apm.plan`, `apm.manage`, `apm.work`) | Strict structure. Role declaration, initiation, core procedures, operating rules. |
+| **Utility skills** (`apm.task`, `apm.review`, `apm.summarize`) | Lightweight structure. Short trigger or standalone skills - full rigidity adds no clarity. |
+| **Handoff skills** (`apm.handoff.manager`, `apm.handoff.worker`) | Lightweight structure. Procedure, structural specs for artifacts. |
+| **Troubleshooting skills** (`apm.recover`) | Lightweight structure. Recovery and diagnostic skills for workflow disruptions. |
 | **Guides** | Strict 5-section pattern (§1 Overview through §5 Content Guidelines) by default. Sections may be merged only when there is a clear, justified reduction in cross-referencing overhead - not for cosmetic reasons. |
 | **Skills** | Free-form structure. Required: §1 Overview (reading agents, objectives, outputs) and end marker. Internal organization adapts to the skill's nature - skills may contain standards, procedures, reference content, or any combination. |
 | **Agents** | Free-form structure. Required: §1 Overview (spawning agents, purpose, outputs) and end marker. Internal organization adapts to the agent's purpose. |
 
 ---
 
-## 2. Command Structure
+## 2. Role Skill Structure
 
-Commands are user-facing prompts that initiate key workflow actions.
+Role skills are user-invoked skills that start or drive an agent role. They follow the skill frontmatter schema in §4.1 YAML Frontmatter and add the fields below, which govern how the skill is invoked and what it may reach for.
 
-### 2.1 YAML Frontmatter
+### 2.1 Frontmatter Additions
 
-Every command file begins with YAML frontmatter.
+| Field | Purpose |
+| ----- | ------- |
+| `disable-model-invocation` | Set to `true` on every role skill. The skill runs only when the User types its name, never on the model's initiative. |
+| `argument-hint` | Arguments shown during autocomplete. Present on every role skill, including those that take none. |
+| `allowed-tools` | Tools and subagents the skill may reach for without a permission prompt. Declare subagents as `Agent(<name>, <name>)`. This grants access; it does not restrict the rest. |
+| `disallowed-tools` | Tools removed from the pool while the skill is active. Use only when a role must never reach a tool. |
 
-**Schema:**
-
-```yaml
----
-command_name: <kebab-case-name>
-description: <one or two sentence description of command purpose>
----
-```
-
-- `command_name` (required, kebab-case): Command identifier.
-- `description` (required, one or two sentences): Brief statement of command purpose.
+The model is not fixed on a role skill - it is inherited from the session.
 
 ### 2.2 Section Structure
 
-Commands follow a variable structure based on purpose, with required opening and closing sections.
+Role skills follow a variable structure based on purpose, with required opening and closing sections.
 
 | Section | Position | Purpose |
 | ------- | -------- | ------- |
 | Overview | §1 (always first) | Introduce agent role, confirm identity, state responsibilities. |
-| [Procedures] | §2 through §(N-1) | Primary procedures for this command. Variable based on purpose. |
+| [Procedures] | §2 through §(N-1) | Primary procedures for this skill. Variable based on purpose. |
 | Operating Rules | §N (always last numbered) | Boundaries, standards, and constraints for agent behavior. |
 
-### 2.3 Command Profiles
+### 2.3 Role Skill Profiles
 
-**Initiation commands** (strict profile):
+**Initiation skills** (strict profile):
 
 | Section | Content |
 | ------- | ------- |
 | §1 Overview | Role declaration ("You are the **[Agent Type]**"), role scope, greeting instruction, responsibilities, skill reference. |
-| §2 Initiation | First instance vs incoming agent logic, artifact reading. Worker includes identity binding. Exemption: the Planner (`apm-1`) operates as a single instance with no Handoff or incoming agent logic, so §2 is omitted and core Procedures start at §2. |
+| §2 Initiation | First instance vs incoming agent logic, artifact reading. Worker includes identity binding. Exemption: the Planner (`apm.plan`) operates as a single instance with no Handoff or incoming agent logic, so §2 is omitted and core Procedures start at §2. |
 | §3+ [Core Procedures] | Main procedures for this agent type. |
 | §N Operating Rules | Boundaries, communication, subagent usage. |
 
-**Utility and troubleshooting commands** (lightweight profile): One-liner purpose with applicability guard and argument handling. Flat procedure steps handle core logic. No formal sections - title, description paragraph, procedure, end marker.
+**Utility and troubleshooting skills** (lightweight profile): One-liner purpose with applicability guard and argument handling. Flat procedure steps handle core logic. No formal sections - title, description paragraph, procedure, end marker.
 
-**Handoff commands** (lightweight profile):
+**Handoff skills** (lightweight profile):
 
 | Section | Content |
 | ------- | ------- |
@@ -254,20 +249,20 @@ field_two: <type or allowed values>
 
 ### 8.3 Placeholder Notation
 
-Value placeholders use `<placeholder>` for values to fill, `[optional]` for conditional content, `...` for pattern continuation, `<N>`/`<M>` for integer values, and `<NN>`/`<MM>` for zero-padded numeric identifiers. Cross-reference placeholders (`{SKILL_PATH:name}`, `{GUIDE_PATH:name}`, `{COMMAND_PATH:name}`, `{AGENT_PATH:name}`, `{SKILLS_DIR}`, `{GUIDES_DIR}`, `{AGENTS_DIR}`, `{RULES_FILE}`, `{VERSION}`, `{TIMESTAMP}`, `{ARGS}`) are resolved during build.
+Value placeholders use `<placeholder>` for values to fill, `[optional]` for conditional content, `...` for pattern continuation, `<N>`/`<M>` for integer values, and `<NN>`/`<MM>` for zero-padded numeric identifiers. Cross-reference placeholders (`{SKILL_NAME:slug}`, `{SKILL_PATH:name}`, `{GUIDE_PATH:name}`, `{AGENT_PATH:name}`, `{SKILLS_DIR}`, `{GUIDES_DIR}`, `{AGENTS_DIR}`, `{RULES_FILE}`, `{VERSION}`, `{TIMESTAMP}`, `{ARGS}`) are resolved during build.
 
 ---
 
 ## 9. File Naming Conventions
 
-### 9.1 Command Files
+### 9.1 Role Skill Files
 
 | Component | Convention |
 | --------- | ---------- |
-| Directory | `commands/` |
-| File | `apm-<N>-<action>.md` |
-| Prefix | `apm-<N>-` where N is sort order |
-| Names | kebab-case throughout |
+| Directory | `skills/apm.<action>/` |
+| File | `SKILL.md` (uppercase) |
+| Prefix | `apm.` on every role skill, so they group under one namespace |
+| Names | lowercase; a dot separates namespace segments (`apm.handoff.worker`) |
 
 ### 9.2 Guide Files
 
@@ -309,16 +304,7 @@ Tasks are identified by Stage number and Task number using the compound `N.M` fo
 
 ## 10. End Markers
 
-Every command, guide, skill, and agent file ends with an end marker followed by a blank line.
-
-**Commands:**
-
-```text
----
-
-**End of Command**
-
-```
+Every guide, skill, and agent file ends with an end marker followed by a blank line.
 
 **Guides:**
 

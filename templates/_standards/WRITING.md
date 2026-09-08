@@ -148,7 +148,7 @@ References use "See" or "per" exclusively. References appear inline within prose
 
 **Cross-Guide:** "See `{GUIDE_PATH:guide-name}` §N.M Section Title." Example: "See `{GUIDE_PATH:work-breakdown}` §3 Work Breakdown Procedure."
 
-**Command:** "See `{COMMAND_PATH:command-name}`."
+**Skill invocation:** "See `{SKILL_NAME:slug}`."
 
 **Cross-Document:** State file name or placeholder with specific section. Reference content, do not duplicate.
 

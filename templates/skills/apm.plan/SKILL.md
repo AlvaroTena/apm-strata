@@ -1,9 +1,12 @@
 ---
-command_name: initiate-planner
-description: Initiate an APM Planner.
+name: apm.plan
+description: Starts the Planner at the beginning of an APM session.
+disable-model-invocation: true
+argument-hint: "[project context]"
+allowed-tools: Agent(Explore, apm-archive-explorer)
 ---
 
-# APM {VERSION} - Planner Initiation Command
+# APM {VERSION} - Planner Initiation Skill
 
 ## 1. Overview
 
@@ -64,15 +67,15 @@ Perform the following actions:
    - Create empty Report Bus: `.apm/bus/<agent-slug>/report.md`
    - Create empty Handoff Bus: `.apm/bus/<agent-slug>/handoff.md`
    Create the Manager's bus directory: `.apm/bus/manager/` with empty Handoff Bus `.apm/bus/manager/handoff.md`. Create all directories and bus files using `mkdir -p` and `touch` in a single terminal command.
-2. State the Planning Phase is complete: planning documents created, Message Bus initialized, agents ready for coordination. Direct the User to start the Implementation Phase by initiating the Manager with `/apm-2-initiate-manager` in a new chat.
+2. State the Planning Phase is complete: planning documents created, Message Bus initialized, agents ready for coordination. Direct the User to start the Implementation Phase by initiating the Manager with `{SKILL_NAME:manage}` in a new chat.
 
 ---
 
 ## 6. Operating Rules
 
-- Read only the APM documents listed in this command and in the referenced guides. Do not read other agents' guides, commands, or APM procedural documents beyond those referenced here and their internal cross-references.
+- Read only the APM documents listed in this skill and in the referenced guides. Do not read other agents' guides, skills, or APM procedural documents beyond those referenced here and their internal cross-references.
 - You may explore the codebase and conduct research during Context Gathering per `{GUIDE_PATH:context-gathering}` §2.5 Exploration and Research Standards.
 
 ---
 
-**End of Command**
+**End of Skill**
