@@ -125,6 +125,8 @@ where the text came from.
 | Roles, file bus, planning documents, handoff protocol | the framework as a whole | - | [agentic-project-management](https://github.com/sdi2200262/agentic-project-management) | MPL-2.0 |
 | Bounded ambiguity resolution: Clear / Partial / Missing scan, discard criterion, five-question ceiling, one question at a time, incremental integration, closing coverage table | `templates/guides/context-gathering.md` | `templates/commands/clarify.md` | [spec-kit](https://github.com/github/spec-kit) | MIT |
 | Requirement checklists whose tick means reviewed quality, never finished implementation, and is reserved for a human reviewer | `templates/guides/work-breakdown.md` | `templates/checklist-template.md` | [spec-kit](https://github.com/github/spec-kit) | MIT |
+| Rules loaded as a numbered step of each procedure rather than assumed to be in context | `templates/guides/` and `templates/skills/`, ten files | mechanism only, no text adapted: the constitution loaded as a numbered step in `templates/commands/` (`plan.md` step 2, `clarify.md` step 2) | [spec-kit](https://github.com/github/spec-kit) | MIT |
+| Forced-justification gate: a departure from a rule is allowed only with a row naming the violation, why it was necessary, and the simpler alternative rejected | `templates/guides/task-logging.md`, `templates/guides/task-review.md` | the three-column table in `templates/plan-template.md` (`Violation` / `Why Needed` / `Simpler Alternative Rejected Because`) | [spec-kit](https://github.com/github/spec-kit) | MIT |
 | Adversarial review lens | `templates/agents/apm-lens-adversarial.md` | `skills/bmad-review/references/lens-adversarial.md` | [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) | MIT |
 | Edge-case and verification-gap lenses | `templates/agents/apm-lens-edge-case.md`, `apm-lens-verification-gap.md` | `skills/bmad-review/references/lens-edge-case-hunter.md`, `lens-verification-gap.md` | [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) | MIT |
 | Acceptance lens | `templates/agents/apm-lens-acceptance.md` | `acceptance-auditor` layer of `skills/bmad-code-review/customize.toml` | [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) | MIT |
@@ -133,11 +135,18 @@ where the text came from.
 | Review material preparation, author-claims isolation, verified triage by the coordinator | `templates/skills/apm.manage/references/review-procedure.md` | `skills/bmad-code-review/steps/step-02-review.md`, `step-03-triage.md`, `skills/bmad-review/SKILL.md` | [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) | MIT |
 | Shape of an external lens instruction | `templates/skills/apm.manage/references/external-lenses.md` | `skills/bmad-review/customize.toml` | [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) | MIT |
 | Delta specifications (`ADDED` / `MODIFIED` / `REMOVED`), usable without adopting the workflow | `docs/deltas.md`, `src/services/delta.js` | format only; the validator is this repository's own | [OpenSpec](https://github.com/Fission-AI/OpenSpec) | MIT |
-| Knowledge layer: synthesis at ingest time, the claim with provenance as the unit | `src/services/knowledge/` | consumer interface modelled on [claude-obsidian](https://github.com/lackeyjb/claude-obsidian) | [LLM wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern | public idea |
-| Deferred entries with a gate that blocks dispatch until cleared | `templates/hooks/apm-dispatch-gate.sh` | - | bmad-loop | MIT |
+| Knowledge layer: synthesis at ingest time, the claim with provenance as the unit | `src/services/knowledge/` | consumer interface modelled on [claude-obsidian](https://github.com/AgriciDaniel/claude-obsidian) | [LLM wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern | public idea |
+| Deferred entries with a gate that blocks dispatch until cleared | `templates/hooks/apm-dispatch-gate.sh` | mechanism only; no text adapted | [bmad-loop](https://github.com/bmad-code-org/bmad-loop) | MIT |
 
-Rules loaded as an explicit step, and the forced-justification gate, are the fork's own and
-are listed here only because they are easy to mistake for adapted material.
+Where a row says "mechanism only", no text was copied: what was adapted is the shape of the
+mechanism, and the source column names where to find it rather than a file this repository
+derives text from.
+
+One lesson came with the rules mechanism rather than the mechanism itself. spec-kit stopped
+propagating constitution guidance into its templates in 0.14.4, because copying the rules to
+the places that use them duplicates the source of truth. That is why the `APM_RULES` block
+here lives in exactly one file and every guide loads it, instead of each guide carrying its
+own copy.
 
 OpenSpec's validator was evaluated and rejected: against five deltas differing by one seeded
 mutation each, it detected four violations but exited zero on one of them - the unmatched
