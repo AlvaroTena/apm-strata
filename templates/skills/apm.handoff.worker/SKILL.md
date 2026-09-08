@@ -9,53 +9,55 @@ argument-hint: "(no arguments)"
 
 ## 1. Overview
 
-This skill initiates the Handoff procedure for a Worker approaching context window limits. You create two artifacts:
-- **Handoff Log:** Working context from the current instance, stored in `.apm/memory/handoffs/<agent>/`.
-- **Handoff prompt:** Written to the Handoff Bus, instructing the incoming Worker to reconstruct context.
+This skill covers one case: a single Task that outlasts the context of the session executing it. Work does not normally move between sessions this way - each Task is dispatched to a fresh session of its own, so a Worker never needs relieving between Tasks. Reach for this only when the Task in front of you cannot be finished honestly in the context you have left.
 
-The incoming Worker rebuilds working context from the Handoff Log and current Stage Task Logs - not from the Handoff Log alone.
+You produce two artifacts:
+- **Handoff Log:** what this session did, tried, and observed, stored in `.apm/memory/handoffs/<agent>/`.
+- **Continuation block:** a delimited note at the top of the domain notes, telling the replacement session where the work stopped.
 
-The incoming Worker must indicate Handoff status in their first Task Report. This triggers the Manager's Handoff detection, which affects dependency context classification for future Task assignments.
+The replacement rebuilds from the Handoff Log and the Task Prompt, which is still on the Task Bus. It does not rebuild from the Handoff Log alone.
 
 ---
 
 ## 2. Handoff Procedure
 
-Execute when User initiates Handoff.
+Execute when you judge your remaining context insufficient to finish the Task, or when the User initiates it.
 
-### 2.1 Handoff Log Creation
-
-Perform the following actions:
-1. Determine instance numbers: your current instance number and incoming Worker instance number (yours + 1).
-2. Create Handoff Log per §3 Handoff Log Structure, capturing **past actions** - what was done, tried, and observed. Content is strictly past tense; current state belongs in the handoff prompt.
-   - Tasks completed and Stage progress this instance.
-   - Working context, patterns, and approaches established during this instance.
-   - Technical notes not captured in Task Logs.
-   - If mid-Task, include execution progress framed as past work (steps completed, approaches tried).
-   - If auto-compaction occurred during this instance, note it and describe which portions of working context are reconstructed rather than first-hand from the summary.
-
-### 2.2 Handoff Prompt Creation
+### 2.1 Securing the Work
 
 Perform the following actions:
-1. Create handoff prompt per §4 Handoff Prompt Structure, capturing **current state** - what is happening now. Content is actionable and present-tense; past actions belong in the Handoff Log.
-2. Apply Worker Handoff asymmetry:
-   - *Mid-Task:* "Read the Task from `task.md`, I completed steps 1-4, resume from step 5." Direct the incoming Worker to read the Task Bus file directly (intact since Task receipt). Include execution progress detail.
-   - *Mid-batch:* The batch is still in `task.md`. Describe the state of each Task in the batch - which are complete (logs written), which is in progress and how far, and which have not been started. The incoming Worker reads the intact batch from the Task Bus and continues from where work left off.
-   - *Between-Tasks:* "No active Task, await `{SKILL_NAME:task}`." State context and readiness.
-3. Include: Handoff Log path, instructions to read current Stage Task Logs, and reminder to indicate incoming Worker status in first Task Report (listing specific Task Log files loaded and, when previous Stages exist, noting that previous-Stage logs were not loaded).
+1. Commit everything you have on the Task branch, following the commit conventions from `{RULES_FILE}`. Uncommitted work does not survive this session.
+2. Note the branch name and the commit you left it at. The replacement continues from that commit, so it has to be written down.
 
-### 2.3 User Review and Finalization
+### 2.2 Handoff Log Creation
 
 Perform the following actions:
-1. Write handoff prompt to the Handoff Bus: `.apm/bus/<agent-slug>/handoff.md`.
-2. Present both artifacts to User: Handoff Log (file path) and handoff prompt (bus path). Request review and direct User to start a new chat and run `{SKILL_NAME:work} <agent-id>` - the incoming Worker will auto-detect the handoff prompt.
-3. If modifications requested, update accordingly. This completes the outgoing Worker's duties.
+1. Determine this session's sequence number for the Worker: one higher than the highest existing Handoff Log in `.apm/memory/handoffs/<agent>/`, or 1 when none exists.
+2. Create the Handoff Log per §3 Handoff Log Structure, capturing **past actions** - what was done, tried, and observed. Content is strictly past tense; where the work stands now belongs in the continuation block.
+   - Which parts of the Task are complete, and which are not.
+   - Approaches tried and rejected, and why - this is what stops the replacement repeating them.
+   - Technical notes not captured elsewhere.
+   - If auto-compaction occurred during this session, note it and say which parts of your account are reconstructed rather than first-hand.
+
+### 2.3 Continuation Block Creation
+
+Perform the following actions:
+1. Write the continuation block at the top of `.apm/bus/<agent-slug>/handoff.md` per `{GUIDE_PATH:task-logging}` §4.3 Domain Notes Format, leaving the existing domain notes below it untouched.
+2. Include: the Task the continuation is for, the Handoff Log path, the Task branch and the commit it was left at, and what the replacement should do first.
+3. Update the domain notes themselves with anything this session learned that outlives the Task, per `{GUIDE_PATH:task-execution}` §2.6 Domain Continuity Standards. The continuation block is consumed and deleted by the replacement; the notes are not.
+
+### 2.4 Reporting the Handoff
+
+Perform the following actions:
+1. Write a Task Report to the Report Bus with `Partial` status, stating that the Task is unfinished, that a continuation is pending, and where the Handoff Log is. The coordinator launches the replacement session - you cannot.
+2. Send the fixed trigger text back per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages.
+3. Stop. This session's duties are complete.
 
 ---
 
 ## 3. Handoff Log Structure
 
-Contains working context from this instance that supports the incoming Worker's execution. Task Logs contain Task-specific details - this file provides instance-level context.
+Contains what this session accumulated while working the Task. The Task Log records the Task's outcome; this file records the attempt.
 
 **Location:** `.apm/memory/handoffs/<agent>/handoff-<NN>.log.md`
 
@@ -63,43 +65,27 @@ Contains working context from this instance that supports the incoming Worker's 
 ```yaml
 ---
 agent: <agent-slug>
-outgoing: <N>
-incoming: <N+1>
 handoff: <N>
 stage: <N>
+task: <M>
+branch: <branch-name>
+commit: <sha>
 ---
 ```
 
 **Field Descriptions:**
 - `agent`: Worker identifier (kebab-case).
-- `outgoing`: Current instance number.
-- `incoming`: Next instance number.
-- `handoff`: Handoff sequence number (equals the outgoing instance number).
-- `stage`: Current Stage number.
+- `handoff`: Sequence number for this Worker's handoffs.
+- `stage`: Stage number of the Task being handed over.
+- `task`: Task number within the Stage.
+- `branch`: The Task branch the work was committed on.
+- `commit`: The commit the branch was left at.
 
 **Body:**
-- *Title:* `# <Display Name> Handoff <N> (<Display Name> <N> → <Display Name> <N+1>)`. Each section uses `##` heading. The display name is the Title Case form of the agent identifier (e.g., `frontend-agent` → `Frontend Agent`).
-- *Summary:* Tasks completed count, current Stage, Stage progress for this Worker.
-- *Working Context:* Patterns, approaches, or context established during this instance.
-- *Working Notes:* Technical details, environment observations, or other context not captured in Task Logs.
-
----
-
-## 4. Handoff Prompt Structure
-
-Written to `.apm/bus/<agent-slug>/handoff.md`. The incoming Worker processes this prompt during auto-detection in the initiation skill.
-
-**Required content:**
-- *Identity:* Outgoing and incoming instance numbers.
-- *Rebuilding context:*
-  1. Read Handoff Log - note working context and technical notes.
-  2. Read current Stage Task Logs (this Worker's logs only).
-  3. Do not load previous-Stage logs - the Manager provides comprehensive context via Task Prompts for cross-Stage dependencies.
-- *Current State:* Current Stage, Tasks completed this instance, notes.
-- *Continuation guidance:* Specific guidance for the incoming Worker about in-progress patterns or upcoming work.
-- *Incoming Worker indication:* Remind incoming Worker to include Handoff status in first Task Report - state instance number, list specific Task Log files loaded, and when previous Stages exist note that previous-Stage logs were not loaded. This triggers Manager Handoff detection.
-- *Immediate Next Action:* For mid-Task or mid-batch, instruct the incoming Worker to read the Task Bus and continue. For between-Tasks, state readiness to await `{SKILL_NAME:task}`.
-- *Closing instruction:* Confirm to User that Handoff Log and Stage context have been read, then state readiness.
+- *Title:* `# <Display Name> Handoff <N> - Task <N>.<M>`. Each section uses `##` heading. The display name is the Title Case form of the agent identifier (e.g., `frontend-agent` → `Frontend Agent`).
+- *Progress:* What of the Task is done and what is not, concretely enough to resume against.
+- *Approaches Tried:* What was attempted and rejected, and why.
+- *Working Notes:* Technical details and environment observations not captured elsewhere.
 
 ---
 

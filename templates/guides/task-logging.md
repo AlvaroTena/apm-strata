@@ -9,7 +9,8 @@ This guide defines how you log Task outcomes and report results. Task Logs captu
 ### 1.1 Outputs
 
 - *Task Log:* Structured log at `.apm/memory/stage-<NN>/task-<NN>-<MM>.log.md` capturing outcome, validation, deliverables, and flags.
-- *Task Report:* Concise summary written to the Report Bus for the Manager to process.
+- *Task Report:* Concise summary written to the Report Bus for the coordinator to process.
+- *Updated domain notes:* `.apm/bus/<agent-slug>/handoff.md`, carrying what the next session of this domain needs.
 
 ---
 
@@ -64,11 +65,10 @@ Perform the following actions:
 ### 3.2 Task Report Delivery
 
 Perform the following actions:
-1. Clear the incoming Task Bus: truncate `.apm/bus/<agent-slug>/task.md` via terminal (e.g., `truncate -s 0` or shell redirection).
-2. Read the Report Bus, then write the Task Report to it: `.apm/bus/<agent-slug>/report.md`. The report is a concise summary - key outcome, status, log path, and any flags. Detail belongs in the Task Log.
-3. Direct the User to deliver the report to the Manager per `{SKILL_PATH:apm-communication}` §2.1 Direct Communication - provide both `{SKILL_NAME:review} <agent-id>` for targeted retrieval and `{SKILL_NAME:review}` as the general form, since multiple Workers may finish concurrently.
-
-For batch execution, write a single batch report per §4.3 Batch Report Format after completing all Tasks (or stopping on failure).
+1. Update the domain notes per §4.3 Domain Notes Format, before clearing anything - the Task Prompt is still on the bus and you may want it.
+2. Clear the incoming Task Bus: truncate `.apm/bus/<agent-slug>/task.md` via terminal (e.g., `truncate -s 0` or shell redirection).
+3. Read the Report Bus, then write the Task Report to it: `.apm/bus/<agent-slug>/report.md`. The report is a concise summary - key outcome, status, log path, and any flags. Detail belongs in the Task Log.
+4. Send the fixed trigger text back per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages. It names the Report Bus path and carries none of the report's content.
 
 ---
 
@@ -168,66 +168,25 @@ compatibility_issues: true | false
 
 **Markdown Body:** 1-2 sentences summarizing the outcome. Reference the Task Log for detail.
 
-For batch reports, use §4.3 Batch Report Format instead.
+### 4.3 Domain Notes Format
 
-### 4.3 Batch Report Format
+`handoff.md` in your bus directory is the only file that carries anything between your domain's sessions. Unlike the Task Bus and Report Bus, it is not cleared after reading: it persists for the life of the domain.
 
-When completing a batch of Tasks (or stopping early on failure), the Report Bus file uses this structure.
+**Location:** `.apm/bus/<agent-slug>/handoff.md`
 
-**Location:** `.apm/bus/<agent-slug>/report.md`
+**Body:** free prose under `##` headings you choose. There is no schema, because what a domain needs to remember differs by domain. Keep it to what the next session would otherwise waste time rediscovering: conventions settled, traps hit, paths that matter, decisions whose reasons are not visible in the code. Replace entries that no longer hold instead of appending, and leave out what a Task Log already records in detail. Empty is a valid state.
 
-**YAML Frontmatter Schema:**
-
-```yaml
----
-batch: true
-batch_size: <N>
-completed: <M>
-stopped_early: true | false
-tasks:
-  - stage: 1
-    task: 1
-    status: Success
-  - stage: 1
-    task: 2
-    status: Failed
-  - stage: 1
-    task: 3
-    status: "Not started"
----
-```
-
-**Field Descriptions:**
-- `batch`: Always `true` for batch reports.
-- `batch_size`: Total Tasks in the batch.
-- `completed`: Tasks that were executed (excludes unstarted).
-- `stopped_early`: Whether the batch stopped before completing all Tasks.
-- `tasks[].stage`: Stage number.
-- `tasks[].task`: Task number within Stage.
-- `tasks[].status`: `Success`, `Partial`, `Failed`, or `"Not started"` for unexecuted Tasks.
-
-**Markdown Body Template:**
+**Pending continuation block.** When a session exhausts its context part-way through a Task, its replacement needs to know where the work stopped. That is transient, not domain memory, so it goes in a clearly delimited block at the top of the file:
 
 ```markdown
-# Batch Report
-
-## Summary
-[Brief overview: X of Y Tasks completed, stopped early if applicable]
-
-## Task Outcomes
-
-### <Title>
-**Status:** [Success | Partial | Failed]
-**Task Log:** `<log_path>`
-[1-2 sentence summary of outcome]
-
-...
-
-## Batch Notes
-[Any cross-cutting observations, patterns, or issues affecting multiple Tasks]
+<!-- APM:CONTINUATION -->
+Continuation pending for Task <N>.<M>. Read the Handoff Log at
+`.apm/memory/handoffs/<agent-slug>/handoff-<NN>.log.md`, then read the Task Prompt still
+on the Task Bus and resume from where it stopped.
+<!-- /APM:CONTINUATION -->
 ```
 
-If the batch stopped early due to a Failed Task, indicate which Task caused the stop and list remaining Tasks as "Not started (batch stopped)."
+A session that finds this block acts on it, then deletes the block and leaves the rest of the file intact. Only `{SKILL_PATH:apm.handoff.worker}` writes it.
 
 ---
 
@@ -243,7 +202,8 @@ If the batch stopped early due to a Failed Task, indicate which Task caused the 
 
 - *Forgetting conditional sections:* When a flag is `true`, include the corresponding section (Compatibility Concerns, Important Findings).
 - *Missing artifact references:* When deliverables are produced, list file paths in the Output section.
-- *Deferred batch logging:* In batch execution, write each Task Log immediately after completing that Task - before starting the next. Deferring all logging to the end of a batch risks context loss if auto-compaction occurs mid-batch.
+- *Domain notes left untouched:* A session that learned something its successor needs and wrote nothing to `handoff.md` has discarded it. The session ends when the Task does, and nothing else carries forward.
+- *Domain notes used as a log:* Appending every session's narrative turns the file into something nobody reads. It holds what is still true and still useful, not a history.
 
 ---
 

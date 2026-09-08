@@ -7,7 +7,11 @@ argument-hint: "[agent-id ...]"
 
 # APM {VERSION} - Manager Check Reports Skill
 
-Check Report Bus(es) for pending Task Reports. If you are a Planner, Worker, or non-APM agent, concisely decline and take no action. This replaces manual file referencing - scan bus directories or check a specific Worker's Report Bus.
+Read pending Task Reports from the Report Bus(es) and process them.
+
+**This is a fallback, not the normal path.** Normally a Worker session sends back a trigger naming its Report Bus and that starts the review. Because the bus holds the report and the trigger only points at it, a lost trigger loses nothing: the report is still there and this retrieves it. It also catches a report from a session that ended without triggering.
+
+If you are a Planner, Worker, or non-APM agent, concisely decline and take no action.
 
 Accepts optional `[agent-id ...]` arguments. With arguments, checks those Workers' Report Buses. Without arguments, checks Workers with active dispatches plus a health check for unexpected content.
 

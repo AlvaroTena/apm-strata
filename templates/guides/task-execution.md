@@ -4,7 +4,9 @@
 
 **Reading Agent:** Worker
 
-This guide defines how you execute Tasks assigned by the Manager via Task Prompts, from receipt through context integration, execution, validation, iteration, and completion.
+This guide defines how you execute the Task assigned to you, from receipt through context integration, execution, validation, iteration, and completion.
+
+Your session exists for this one Task. It starts when the coordinator launches it and ends when the Task's branch is merged, so nothing you hold in context survives to the next Task. What the next session of your domain needs to know goes in `handoff.md`, which you read before you start and update before you report.
 
 ---
 
@@ -14,9 +16,9 @@ Write clean, maintainable code following best practices for the language and fra
 
 ### 2.1 Context Integration Standards
 
-Follow cross-agent integration steps completely - read files, review artifacts, understand interfaces. For dependency integration that requires reading specific files at known paths, read them directly. Subagent dispatch is for open-ended exploration or investigation where the scope is broad or context isolation is beneficial. Use same-agent guidance as recall anchors - review referenced paths to refresh context if needed.
+Follow the integration steps completely - read files, review artifacts, understand interfaces. Do this for every dependency, including work an earlier session of your own domain produced: that session is gone and you have none of its context. For dependency integration that requires reading specific files at known paths, read them directly. Subagent dispatch is for open-ended exploration or investigation where the scope is broad or context isolation is beneficial.
 
-**Integration issues:** Do not execute on an unstable foundation. For cross-agent dependencies, pause for User guidance. For same-agent, minor ambiguities - continue with best interpretation and note uncertainty; missing expected files - pause for guidance.
+**Integration issues:** Do not execute on an unstable foundation. Report back with Partial status when a dependency's output is missing or contradicts what the prompt describes, and say what you found - the coordinator can correct the prompt or the ordering. For a minor ambiguity, continue with your best interpretation and note the uncertainty in the Task Log.
 
 ### 2.2 Validation Standards
 
@@ -42,15 +44,19 @@ When the User provides a correction or directive during execution, comply immedi
 
 ### 2.5 Version Control Standards
 
-Operate in the workspace provided by the Task Prompt - main working directory on the assigned branch for sequential dispatch, or worktree path for parallel dispatch. Commit work to the assigned branch following the commit conventions from `{RULES_FILE}` and note the workspace in the Task Log. You only commit - do not create branches, manage worktrees, push, or merge. The Manager handles all other version control operations. For large Tasks, commit at logical intermediate points during execution rather than only at completion - each commit should represent a coherent unit of change.
+Operate in the worktree given in the Task Prompt's Workspace section. Cut the Task branch named there from the base branch named there, and commit your work on it following the commit conventions from `{RULES_FILE}`. Note the worktree and branch in the Task Log. Cutting your own Task branch is the only version control setup you perform: do not create other branches, manage worktrees, push, or merge. The coordinator handles the rest. For large Tasks, commit at logical intermediate points rather than only at completion - each commit should represent a coherent unit of change.
+
+`.apm/` paths resolve through a link inside the worktree to the one shared copy, so your Task Log and bus files are written where the coordinator reads them. Do not create a second `.apm/` inside the worktree.
 
 **Commit content:** APM terminology - Task IDs, Stage numbers, agent identifiers, framework vocabulary - does not appear in commit messages, branch references, or source code comments. Commits reflect the actual code changes and actions taken, not the framework managing them. Write commit messages as if no project management framework existed.
 
-### 2.6 Batch Rules
+### 2.6 Domain Continuity Standards
 
-When receiving a batch of Tasks (multiple Task Prompts in a single Task Bus message), execute sequentially. Complete each Task fully - execute, validate, and write the Task Log - before starting the next Task in the batch. Each Task gets its own Task Log at its specified `log_path`.
+`handoff.md` in your bus directory is your domain's memory across sessions. Read it before you start and update it before you report.
 
-**Fail-fast:** If any Task results in Failed status, stop the batch. Do not proceed to remaining Tasks. After completing all Tasks (or stopping on failure), write a single batch report to the Report Bus per `{GUIDE_PATH:task-logging}` §4.3 Batch Report Format. Do not defer logging to the end of the batch.
+**Reading it.** Treat it as what an earlier session of this domain chose to pass on: conventions it settled, traps it hit, paths that matter. It is not dependency context and not authoritative over your Task Prompt. When it contradicts the prompt or the codebase, the prompt and the codebase win, and you note the contradiction so it gets corrected.
+
+**Updating it.** Write what the next session of this domain would waste time rediscovering, and nothing else. Keep it short enough to stay worth reading: replace entries that no longer hold rather than appending to them, and leave out anything a Task Log already records in detail. An empty file is a valid state - say nothing rather than pad it.
 
 ---
 
@@ -60,20 +66,21 @@ Sequential flow from Task Prompt receipt through completion. Task Validation and
 
 ### 3.1 Task Prompt Receipt
 
+A trigger naming your Task Bus starts this procedure. The trigger itself carries nothing but that path - everything you need is in the file.
+
 On Task receipt, perform the following actions:
 1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
-2. Check for batch envelope: if Task Bus contains `batch: true` in frontmatter, it contains multiple Task Prompts separated by `---` delimiters. Execute each Task sequentially per §2.6 Batch Rules.
-3. Verify `agent` in YAML frontmatter matches your assigned identity. Validate the bus directory matches `agent` per `{SKILL_PATH:apm-communication}` §4.1 Bus Identity Standards. If mismatch, decline per `{SKILL_PATH:apm.work}` §5 Operating Rules.
-4. If Workspace section present: switch to the specified branch or worktree path before starting work.
-5. If `has_dependencies: true`, continue to Context Integration, otherwise proceed to §3.3 Task Execution.
+2. Read `.apm/bus/<agent-slug>/handoff.md` per §2.6 Domain Continuity Standards. Empty means no earlier session left anything.
+3. Read the Task Prompt from `.apm/bus/<agent-slug>/task.md`.
+4. Verify `agent` in YAML frontmatter matches your assigned identity. Validate the bus directory matches `agent` per `{SKILL_PATH:apm-communication}` §4.1 Bus Identity Standards. If mismatch, decline per `{SKILL_PATH:apm.work}` §5 Operating Rules.
+5. Cut the Task branch from the base branch, both named in the Workspace section, per §2.5 Version Control Standards.
+6. If `has_dependencies: true`, continue to Context Integration, otherwise proceed to §3.3 Task Execution.
 
 ### 3.2 Context Integration
 
 Perform the following actions:
 1. Read the Context from Dependencies section.
-2. Execute integration based on dependency type per §2.1 Context Integration Standards:
-   - **Cross-agent:** Follow integration steps completely - read files, review artifacts, understand interfaces. {WORKER_SUBAGENT_GUIDANCE} When a subagent returns findings, verify critical claims by reading the key files it references before proceeding - subagent summaries compress details and can misrepresent what matters for execution.
-   - **Same-agent:** Use guidance to recall and build upon prior work; review referenced paths to refresh context if needed.
+2. Execute the integration steps completely for every dependency per §2.1 Context Integration Standards - read files, review artifacts, understand interfaces. {WORKER_SUBAGENT_GUIDANCE} When a subagent returns findings, verify critical claims by reading the key files it references before proceeding - subagent summaries compress details and can misrepresent what matters for execution.
 3. If integration issues discovered, apply decision rules from §2.1 Context Integration Standards.
 
 ### 3.3 Task Execution
@@ -105,17 +112,17 @@ Perform the following actions:
 1. Present your assessment visibly in chat: whether all objectives are met and deliverables are ready, whether any important findings or compatibility issues arose, and the Task's outcome status per `{GUIDE_PATH:task-logging}` §2.2 Outcome Standards.
 2. Commit work to the assigned branch per §2.5 Version Control Standards.
 3. Create Task Log per `{GUIDE_PATH:task-logging}` §3.1 Task Log Procedure at `log_path`.
-4. Write Task Report per `{GUIDE_PATH:task-logging}` §3.2 Task Report Delivery. Include relevant status indications:
-   - *After Handoff.* If this is the first Task after Handoff initialization, include incoming Worker indication: state instance number, list the specific Task Log files loaded, and note that previous-Stage logs were not loaded.
-   - *After recovery:* If auto-compaction occurred and recovery was performed via `{SKILL_NAME:recover}`, note it in the Task Report so the Manager is aware.
-5. State readiness for the next Task via `{SKILL_NAME:task}` (no argument needed - you are already registered). Await the next Task Prompt or Handoff initiation.
+4. Update `handoff.md` per §2.6 Domain Continuity Standards.
+5. Write Task Report and send the trigger back per `{GUIDE_PATH:task-logging}` §3.2 Task Report Delivery. If auto-compaction occurred and recovery was performed via `{SKILL_NAME:recover}`, note it in the Task Report.
+6. Stop. The coordinator reviews the report and either sends a correction to this same session or releases it after merging. Do not start anything else, and do not act on the absence of a reply.
 
 ---
 
 ## 4. Common Mistakes
 
 - *Framework vocabulary in project output:* Commit messages, source comments, and code should describe the actual work - not the framework managing it. Never surface Task IDs, Step numbers, agent identifiers, or APM terminology in project-facing output.
-- *Skipping cross-agent integration steps:* When cross-agent dependency context includes file reading instructions and integration guidance, completing those steps fully before starting implementation catches integration mismatches early. Proceeding on assumptions about another Worker's output leads to rework.
+- *Skipping integration steps:* When dependency context includes file reading instructions and integration guidance, completing those steps fully before starting implementation catches mismatches early. Proceeding on assumptions about someone else's output - or about what an earlier session of your own domain did - leads to rework.
+- *Leaving `handoff.md` as you found it:* A session that learned something the next one needs and wrote nothing down has thrown it away. Nothing else carries between sessions.
 - *Fixing without investigating:* Attempting changes before understanding why the failure occurred. Read error output, trace the cause, and understand what went wrong first - otherwise each fix attempt is a guess that may compound the problem.
 - *Continuing to iterate instead of delegating:* When a correction does not resolve the issue, the effective path is spawning a debug subagent with accumulated context rather than continuing in the main context. Each iteration consumes context budget and reduces reasoning quality - a subagent with fresh context is more effective.
 - *Working non-incrementally:* Writing large deliverables in one pass without testing intermediate results. Build incrementally - compile, run, or validate after each meaningful step rather than producing everything and then discovering issues.

@@ -43,10 +43,10 @@ Perform the following actions:
 2. Explore version control. Read the Spec's Workspace section for working repositories and any Planner notes (blockquote after the header separator). For each working repository:
    - Navigate to the directory. If git is not initialized, run `git init` and inform the User.
    - Check git state: current branch, available branches, recent commit history. Note commit message patterns and branching patterns. The current branch is not necessarily the base branch the User wants - present what you find and confirm. If you notice potentially stale worktrees or orphaned branches, note them in the understanding summary for the User to address.
-   - If `.apm/` is inside a repository directory, add `.apm/` to `.gitignore` by default. Ask the User if they want to track any `.apm/` artifacts in git (planning documents, Memory). If yes, adjust entries accordingly.
+   - If `.apm/` is inside a repository directory, add `.apm` to `.gitignore` by default. Write it without a trailing slash: a trailing slash matches directories only, and each Task's worktree reaches the bus through a link of that name, which would then show as untracked and block the session's release. Ask the User if they want to track any `.apm/` artifacts in git (planning documents, Memory). If yes, adjust entries accordingly.
 3. Present understanding summary and VC conventions together for User approval, covering:
    - *Understanding summary:* project scope and objectives, key design decisions and constraints from the Spec, notable Rules, Workers, Stage structure, Task count, workstreams and efficient dispatch opportunities. Note any Stage boundaries where holistic verification may be warranted based on Plan notes and project complexity.
-   - *Version control conventions:* present the default version control model, then layer in project-specific observations. By default in APM, each Task gets a feature branch off the base branch, Workers commit on their assigned branch, you merge completed branches back to base, and when multiple Workers operate in parallel each gets an isolated worktree. Remotes are not pushed to by default. Then surface what you found: combine observations from the Planner's Spec notes with patterns you detected in step 2 - commit message styles, branching patterns, existing conventions. Propose conventions based on what was observed, or lightweight defaults where nothing was detected (`type/short-description` branches, `type: description` commits with types feat, fix, refactor, docs, test, chore). Confirm the base branch for each repository. If the User declined version control during the Planning Phase, present this and note that parallel dispatch is unavailable.
+   - *Version control conventions:* present the default version control model, then layer in project-specific observations. By default in APM, each Task runs in its own worktree on its own branch off the base branch, the Worker commits there, and you merge completed branches back to base. Whether a remote exists changes how a finished session is released, so confirm it: with a remote the branch is pushed before release, without one the release discards the worktree after the merge. Then surface what you found: combine observations from the Planner's Spec notes with patterns you detected in step 2 - commit message styles, branching patterns, existing conventions. Propose conventions based on what was observed, or lightweight defaults where nothing was detected (`type/short-description` branches, `type: description` commits with types feat, fix, refactor, docs, test, chore). Confirm the base branch for each repository. If the User declined version control during the Planning Phase, present this and explain that dispatch needs it: a Task cannot get its own branch and worktree without it. Offer to initialize it now.
 4. Ask the User to review both the understanding summary and the proposed conventions and confirm before proceeding.
    - If corrections needed, integrate feedback and re-present.
    - If approved, write the Tracker's Version Control table (one row per repository with base branch, branch convention, and commit convention), write commit conventions to `{RULES_FILE}` within the APM_RULES block, populate Task Tracking with Stage 1 Tasks per `{GUIDE_PATH:task-review}` §4.1 Task Tracking Format and Worker tracking with all Workers uninitialized. Then generate the first Task Prompt(s) per `{GUIDE_PATH:task-assignment}` §3.1 Dispatch Assessment and proceed to §3 Continuous Coordination.
@@ -64,15 +64,15 @@ Perform the following actions:
 
 ## 3. Continuous Coordination
 
-After each review, reassess readiness and continue to dispatch in the same turn when Tasks are Ready without waiting for User input per `{GUIDE_PATH:task-review}` §2.4 Parallel Coordination Standards. Repeat until all Stages complete, User input is needed, User intervenes, or Handoff is needed.
+You drive this loop yourself. You launch each Worker session, trigger it, stop it when it reports, resume it for a correction, and release it once its work is merged. The User approves each Stage's dispatch plan and reads your briefs; nothing in the loop waits on the User carrying a message. Repeat until all Stages complete, the User intervenes, or Handoff is needed.
 
-1. **Dispatch:** Run dispatch assessment per `{GUIDE_PATH:task-assignment}` §3.1 Dispatch Assessment, construct and deliver Task Prompt(s) per `{GUIDE_PATH:task-assignment}` §3.3 Task Prompt Construction. Direct User to the Worker(s).
-2. **Await Report:** User runs `{SKILL_NAME:task}` in Worker chat(s). Workers execute, validate, log, and write Task Report(s) to Report Bus. User runs `{SKILL_NAME:review}` in this chat.
-3. **Review and Continue.** Process the report per `{GUIDE_PATH:task-review}` §3 Task Review Procedure: review the Task Log, investigate further if needed and determine review outcome, modify planning documents if needed, update the Tracker. Then in the same turn:
+1. **Dispatch:** Run dispatch assessment per `{GUIDE_PATH:task-assignment}` §3.1 Dispatch Assessment. At a Stage's first dispatch, present the Stage's dispatch plan and wait for the User's approval. Then, for each Task, construct and deliver the prompt, launch its session, and trigger it per `{GUIDE_PATH:task-assignment}` §3.3 Task Prompt Construction.
+2. **Await triggers:** each session works and sends back a trigger naming its Report Bus. Reports arrive in any order and need nothing from the User. End your turn.
+3. **Review and Continue.** On each returning trigger, process the report per `{GUIDE_PATH:task-review}` §3 Task Review Procedure: stop the session, review the Task Log, investigate if needed, modify planning documents if needed, merge, release the sessions that earlier merges freed, update the Tracker, and brief the User on what the Task produced and what you concluded. Keep this Task's session until the next cycle so the User can still call for a correction. Then in the same turn:
    - *Tasks Ready:* Continue to step 1.
-   - *No Tasks Ready, Workers active:* Communicate wait state per `{GUIDE_PATH:task-review}` §2.4 Parallel Coordination Standards and direct User to return the next report (repeat step 2).
-   - *Follow-up needed:* Construct refined prompt per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction (repeat step 2).
-   - *Stage complete:* Stage summary per `{GUIDE_PATH:task-review}` §3.5 Stage Summary Creation, then continue to step 1 for next Stage. If all Stages complete, proceed to §4 Project Completion.
+   - *No Tasks Ready, sessions still working:* State the wait per `{GUIDE_PATH:task-review}` §2.4 Session Coordination Standards and end the turn.
+   - *Correction needed:* Construct the refined prompt, resume that same session with its full id, and trigger it again per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction (repeat step 2).
+   - *Stage complete:* Stage summary per `{GUIDE_PATH:task-review}` §3.5 Stage Summary Creation, then continue to step 1 for the next Stage. If all Stages complete, proceed to §4 Project Completion.
 
 ---
 
@@ -93,7 +93,7 @@ When all Stages are complete:
 
 Handoff is User-initiated when context window limits approach.
 
-- **Proactive monitoring:** Monitor Worker performance through their reports and Task Logs. If a Worker's output quality degrades or a report indicates auto-compaction occurred, inform the User that the Worker needs a Handoff or recovery to continue effectively.
+- **Proactive monitoring:** Monitor Worker output through reports and Task Logs. A session exists for one Task, so degraded output rarely means the Worker needs relieving - it usually means the Task Prompt was thin or the Task is too large. When a report indicates auto-compaction, or when a session runs out of context part-way through its Task, that single session needs relieving per `{SKILL_PATH:apm.handoff.worker}`.
 - **Handoff execution:** When User initiates, see `{SKILL_PATH:apm.handoff.manager}` for Handoff Log and handoff prompt creation.
 
 ---
@@ -101,8 +101,8 @@ Handoff is User-initiated when context window limits approach.
 ## 6. Operating Rules
 
 - **Coordination-level role:** You normally operate at the coordination level - assigning Tasks, reviewing results, maintaining project state, working from Task Logs and summaries rather than raw source code. When investigation requires it or the User explicitly requests it, dive into execution details or perform implementation work directly. Authority thresholds for planning document modifications per `{GUIDE_PATH:task-review}` §2.3 Planning Document Modification Standards.
-- **Initialization tracking:** Use Worker tracking in the Tracker to determine which Workers have been initialized. See `{GUIDE_PATH:task-assignment}` §3.3 Task Prompt Construction step 7 for initialization and delivery guidance.
-- **Handoff tracking:** Use Worker tracking and cross-agent overrides in the Tracker to track Worker Handoffs. See `{GUIDE_PATH:task-review}` §3.1 Report Processing for dependency reclassification details.
+- **Session tracking:** The Task table's Session column holds the live session for each Task, and both of its identifiers. Record them at dispatch and clear them at release per `{GUIDE_PATH:task-review}` §4.1 Task Tracking Format. A session whose full id was never written down cannot be resumed for a correction.
+- **Relieved sessions:** A Worker never needs relieving between Tasks - each Task gets a fresh session. The one case is a single Task that outlasts its session, which reports `Partial` with a continuation pending. Launch a replacement session for that Task and note it in the Tracker's working notes.
 - **Context scope:** Read only the APM documents listed in §2 Initiation. Do not read other agents' guides, skills, or APM procedural documents beyond those listed and their internal cross-references.
 
 ---

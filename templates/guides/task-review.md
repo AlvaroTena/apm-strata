@@ -50,17 +50,19 @@ Small contained actions (follow-ups for isolated issues, minor planning document
 
 **Modification authority:** Small contained changes are Manager authority (single Task clarification or correction, adding a missing dependency, isolated Spec addition, minor Rules adjustment). Significant changes require User collaboration (multiple Tasks affected, design direction change, scope expansion or reduction, new Stage or major restructure). Multiple small modifications that together represent significant change require User collaboration. When authority is unclear, prefer User collaboration.
 
-### 2.4 Parallel Coordination Standards
+### 2.4 Session Coordination Standards
 
-When multiple Workers are active simultaneously, coordinate asynchronously.
+Several Worker sessions run at once and their reports arrive on their own. Coordinate asynchronously.
 
-**Immediate reassessment:** After processing each report, reassess readiness and continue to dispatch assessment in the same turn - review and next dispatch happen in a single response without waiting for User input. The only reasons to pause are when no Tasks are Ready (wait state) or when a modification requires User collaboration per §2.2 Review Outcome Standards.
+**Stop on arrival.** A report means that session's attempt is finished. Stop the session before anything else: it stops consuming resources and keeps its conversation, and resuming a session that is still running produces a copy instead. Stopping is a prerequisite for the correction step, not a courtesy.
 
-**Async report handling:** Reports arrive in any order. Process each as it comes - complete the review, merge if needed, reassess readiness, dispatch newly Ready Tasks. Each report-to-dispatch cycle is continuous.
+**Immediate reassessment:** After processing each report, reassess readiness and continue to dispatch assessment in the same turn, within the Stage the User already approved. The only reasons to pause are when no Tasks are Ready or when a modification requires User collaboration per §2.2 Review Outcome Standards.
 
-**Merge coordination:** After successful review during parallel dispatch, merge the completed Task's branch per §2.5 Merge Standards before dispatching dependent Tasks. At Stage end, perform a merge sweep per §2.5 Merge Standards.
+**Async report handling:** Reports arrive in any order. Process each as it comes - stop the session, complete the review, merge if needed, reassess readiness, dispatch newly Ready Tasks.
 
-**Wait state:** When no Tasks are Ready but Workers are active, communicate what was processed, what is pending, and which report(s) the User should return next. If a pending report would unlock a better dispatch combination per `{GUIDE_PATH:task-assignment}` §2.4 Dispatch Standards, recommend the User prioritize that report.
+**Brief the User after each review.** Say what the Task produced, what the review concluded, and what happens next. This is a report, not a request: proceed in the same turn. The Task's session stays stopped but alive until the next cycle per §2.5 Merge Standards, so a correction the User calls for after reading the brief still goes to that session per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction. Say so in the brief when the Task is one the User may want to change.
+
+**Wait state:** When no Tasks are Ready but sessions are still working, say what was processed and what is outstanding. Nothing is required of the User - the remaining reports arrive by themselves.
 
 ### 2.5 Merge Standards
 
@@ -74,7 +76,18 @@ Merge state is a dispatch prerequisite. Merge completed feature branches into th
 
 **Branch protection adaptation:** If the base branch has protection rules preventing direct merges, adapt (create a PR, merge into an intermediate branch, or ask the User). Discovered reactively and noted in working notes.
 
-**Cleanup:** After a successful merge, clean up in order - first remove the worktree if one exists (`git worktree remove .apm/worktrees/<branch-slug>`), then delete the merged feature branch (`git branch -d <branch-name>`). The branch cannot be deleted while a worktree references it. During Stage-end merge sweeps with multiple branches, batch all removals first, then all deletions, in a single terminal invocation.
+**Merge promptly, release later.** Merging is a dispatch prerequisite, so merge as soon as the review passes. Releasing is not urgent and deletes the session, so hold it: release the sessions freed by earlier merges at the start of the next dispatch cycle, and sweep whatever remains at Stage end.
+
+The reason is the brief. The User reads what the Task produced only after the review, and may call for a correction. That correction goes to the Task's own session, which still holds the context of the attempt - so a session released in the same breath as the merge takes that option away before the User ever had it. A merged Task whose session is still around costs a worktree; a released one costs a fresh session and a cold start.
+
+Releasing a session refuses unless its worktree is clean and its commits are on a remote. Which path applies depends on the project:
+
+- *With a remote:* push the Task branch, then release the session by its short id. Nothing is discarded.
+- *Without a remote:* merge first, then release with the discard option, passing the exact value the refusal message prints. This throws away the worktree's commits, which is safe only because the merge already carried them to the base branch. Never use it before merging.
+
+If a release is refused for uncommitted changes, look for an untracked `.apm` link - the ignore entry must be `.apm` with no trailing slash per `{GUIDE_PATH:task-assignment}` §2.5 Version Control Standards.
+
+**Branch cleanup:** releasing a session deletes no refs. Two branches survive it - the Task branch and the branch the launch created alongside the worktree - and both are deleted separately. During Stage-end sweeps, batch the deletions into a single terminal invocation.
 
 ### 2.6 Stage Summary Standards
 
@@ -112,12 +125,12 @@ Three sequential steps per report (processing, log review, outcome determination
 
 ### 3.1 Report Processing
 
-Execute when User runs `{SKILL_NAME:review}` or returns with a Task Report (or batch report) from a Worker.
+Execute when a Worker session's trigger names its Report Bus, or when the User retrieves a report by hand with `{SKILL_NAME:review}`.
 
 Perform the following actions:
 1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
 2. Read the report from the Report Bus (`.apm/bus/<agent-slug>/report.md`).
-3. If batch report (`batch: true` in frontmatter): the report contains per-Task outcomes in a `tasks` array (each with `stage`, `task`, `status`) and fields `completed`, `stopped_early`. Process each completed Task individually through §3.2 Task Log Review and §3.3 Review Outcome. Tasks with status `"Not started"` re-enter the dispatch pool.
+3. Stop the reporting session by its short id per §2.4 Session Coordination Standards.
 4. Check for Handoff indication - look for a statement that the Worker is a new instance and a list of current-Stage Task Logs read. When previous Stages exist, the report also notes that previous-Stage logs were not loaded. If detected, verify the Handoff Log exists. Update Worker tracking in the Tracker: increment the instance number for this Worker. Compare the loaded Task Logs against all Tasks previously completed by this Worker and record cross-agent overrides in the Tracker for any completed Tasks whose logs were not loaded. From this point forward, previous-Stage same-agent dependencies for this Worker are treated as cross-agent.
 5. Check for auto-compaction indication - a Worker that recovered from auto-compaction notes it in the Task Report. If detected, update Worker tracking Notes in the Tracker (e.g., "auto-compacted, recovered"). No dependency reclassification - the Worker continues as the same instance. Provide slightly more comprehensive dependency context in future Task Prompts for this Worker.
 6. Update dispatch tracking: mark this Worker as available, note completed Task(s) for readiness assessment.
@@ -142,11 +155,11 @@ Perform the following actions:
    - If no issues are found, continue to step 3.
    - If the Worker needs a follow-up, create a follow-up Task Prompt per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction and continue to step 3.
    - If planning documents need modification, proceed to §3.4 Planning Document Modification (returns to step 3 after completion).
-3. Update the Tracker per §4.1 Task Tracking Format: mark completed Tasks as Done, reassess Waiting Tasks for readiness, update branches. Execute pending merges per §2.5 Merge Standards before reassessing readiness. Assess whether the review yielded note-worthy context and add to working notes - both ephemeral coordination items and durable observations for later distillation. Remove stale working notes. Batch all changes from this review-dispatch cycle into a single Tracker edit.
-4. Assess next action per §2.4 Parallel Coordination Standards:
+3. Update the Tracker per §4.1 Task Tracking Format: mark completed Tasks as Done, reassess Waiting Tasks for readiness, update branch and session state. Execute pending merges per §2.5 Merge Standards before reassessing readiness, and release the sessions that earlier merges already freed. Assess whether the review yielded note-worthy context and add to working notes - both ephemeral coordination items and durable observations for later distillation. Remove stale working notes. Batch all changes from this review-dispatch cycle into a single Tracker edit.
+4. Brief the User on this Task per §2.4 Session Coordination Standards, then assess next action:
    - If all Stage Tasks are Done and merged, collapse Stage per §4.1 Task Tracking Format and proceed to §3.5 Stage Summary Creation.
    - If Tasks are Ready, proceed to `{GUIDE_PATH:task-assignment}` §3.1 Dispatch Assessment in the same turn.
-   - If no Tasks are Ready but Workers are active, communicate wait state per §2.4 Parallel Coordination Standards and direct User to return the next report.
+   - If no Tasks are Ready but sessions are still working, state the wait per §2.4 Session Coordination Standards and end the turn.
 
 ### 3.4 Planning Document Modification
 
@@ -177,7 +190,7 @@ Perform the following actions:
 
 ### 4.1 Task Tracking Format
 
-The Task Tracking section within the Tracker tracks Task statuses, agent assignments, and branch state per Stage. Update after each review cycle.
+The Task Tracking section within the Tracker tracks Task statuses, agent assignments, branch state, and live sessions per Stage. Update after each review cycle.
 
 **Location:** `## Task Tracking` section of `.apm/tracker.md`.
 
@@ -187,14 +200,16 @@ The Task Tracking section within the Tracker tracks Task statuses, agent assignm
 
 **Stage 2:**
 
-| Task | Status | Agent | Branch |
-|------|--------|-------|--------|
-| 2.1 | Done | frontend-agent | |
-| 2.2 | Active | backend-agent | feat/backend-models |
-| 2.3 | Active | frontend-agent | feat/frontend-auth |
-| 2.4 | Waiting: 2.1 | backend-agent | |
-| 2.5 | Ready | frontend-agent | |
+| Task | Status | Agent | Branch | Session |
+|------|--------|-------|--------|---------|
+| 2.1 | Done | frontend-agent | | |
+| 2.2 | Active | backend-agent | feat/backend-models | 8ca4fa63 / 8ca4fa63-975f-4a49-8431-2a9e4a6f1c09 |
+| 2.3 | Active | frontend-agent | feat/frontend-auth | 27423fb8 / 27423fb8-1c0e-4d77-9a52-0b3e6f5d8a41 |
+| 2.4 | Waiting: 2.1 | backend-agent | | |
+| 2.5 | Ready | frontend-agent | | |
 ```
+
+**Session column:** both identifiers for the Task's session, short id first, separated by ` / `. They are not interchangeable - the short id stops and releases the session, and only the full id resumes it. Write them at dispatch, before anything can go wrong: a session whose full id was never recorded cannot be resumed for a correction, and an incoming Manager has no way to recover it. Empty means no live session for that Task.
 
 **Task statuses:** `Ready`, `Active`, `Done`, `Waiting: <deps>`.
 
@@ -207,9 +222,9 @@ The Task Tracking section within the Tracker tracks Task statuses, agent assignm
 
 Write the end state of each Task for the review-dispatch cycle. When a Task is unblocked and dispatched in the same turn, write directly from Waiting to Active. When a Task is unblocked but cannot be dispatched - the assigned Worker has an Active Task or a pending report would unlock a better dispatch per `{GUIDE_PATH:task-assignment}` §2.4 Dispatch Standards - write Ready.
 
-**Branch cleanup:** After merging a completed branch per §2.5 Merge Standards, clear the Branch column for that Task row.
+**Cleanup:** Clear the Branch column when the branch is merged. Clear the Session column only when the session is released, which happens a cycle later per §2.5 Merge Standards - until then the row shows a Done Task with a live session, which is what makes a late correction possible.
 
-**Stage collapse:** When all Tasks in a Stage are Done with no branches remaining, replace all Task rows with `**Stage N:** Complete`.
+**Stage collapse:** When all Tasks in a Stage are Done with no branches or sessions remaining, replace all Task rows with `**Stage N:** Complete`.
 
 **Batch edits:** Task ID column guarantees edit tool uniqueness for targeting individual rows. When multiple rows or working notes change in the same review-dispatch cycle, batch all Tracker updates into a single edit.
 

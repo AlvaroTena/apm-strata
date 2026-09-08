@@ -8,10 +8,10 @@ This guide defines how you construct and deliver Task Prompts for Workers, manag
 
 ### 1.1 Outputs
 
-- *Task Prompt:* Content written to Task Bus for Worker to receive.
+- *Task Prompt:* Content written to a Task Bus for a Worker session to read.
 - *Follow-up Task Prompt:* Refined prompt when the review outcome determines retry.
-- *Feature branches:* One branch per dispatch unit, created off the base branch.
-- *Worktrees:* Isolated working directories under `.apm/worktrees/` for parallel dispatch.
+- *Worker session:* One background session per Task, in its own worktree, launched at dispatch and released after merge.
+- *Task branch:* One branch per Task, cut from the base branch by the Worker.
 
 ---
 
@@ -19,15 +19,11 @@ This guide defines how you construct and deliver Task Prompts for Workers, manag
 
 ### 2.1 Dependency Context Standards
 
-Tasks may depend on outputs from previous Tasks. The context you include depends on the Worker's familiarity with the producer's work.
+Tasks may depend on outputs from previous Tasks. Every Task runs in a session that starts empty, including Tasks whose dependencies an earlier session of the same Worker produced. Write comprehensive context for every dependency - explicit file reading instructions, output summaries, integration guidance. Assume nothing, and do not vary the depth by who produced the work.
 
-**Same-agent dependencies:** The Worker previously completed the producer Task and has working familiarity. Provide light context - recall anchors, key file paths, brief reference to previous work. Detail increases with dependency complexity.
+**Domain context is the Worker's own.** What carries across a Worker's sessions lives in that Worker's `handoff.md`, which each session reads before it starts. That file is one session's note to the next and is not a substitute for dependency context, which you construct in the prompt.
 
-**Cross-agent dependencies:** A different Worker completed the producer Task. The Worker has zero familiarity. Provide comprehensive context - explicit file reading instructions, output summaries, integration guidance. Assume nothing.
-
-**After Worker Handoff:** The incoming Worker only has current-Stage Task Logs loaded. Current-Stage same-agent dependencies remain same-agent. Previous-Stage same-agent dependencies are reclassified as cross-agent because the incoming Worker lacks that working context. Check cross-agent overrides in the Tracker during dependency analysis to determine which Tasks have been reclassified.
-
-**Dependency identification:** Check the Task's Dependencies field in the Plan. Cross-agent dependencies are bolded. "None" indicates no dependencies.
+**Dependency identification:** Check the Task's Dependencies field in the Plan. "None" indicates no dependencies. Which Worker produced a dependency matters for reading the dependency graph and for ordering merges, not for how much context you write.
 
 **Chain reasoning:** Dependencies may have their own dependencies. Trace upstream when ancestors established patterns, schemas, or contracts the current Task must follow. Stop tracing when an intermediate node fully abstracts what came before. When uncertain whether an ancestor is relevant, include rather than risk missing critical context.
 
@@ -55,34 +51,41 @@ Before constructing individual Task Prompts, assess dispatch opportunities acros
 
 **Task readiness:** A Task is Ready when all its dependencies are Done. Read the Tracker for current statuses; cross-reference the Dependency Graph for newly unblocked Tasks.
 
-**Dispatch modes.** Assess all Ready Tasks, group by Worker, and form dispatch units:
-- *Batch:* Multiple Ready Tasks for the same Worker, dispatched together. Candidates either form a sequential chain (each depends only on the previous or already-complete Tasks) or are an independent group (no dependencies between them, all Ready simultaneously). When forming chains, weigh whether external Tasks depend on intermediate results - if so, dispatching individually allows earlier review and unblocks dependent Workers sooner. Soft guidance is 2-3 Tasks per batch.
-- *Single:* one Ready Task for a Worker.
-- *Parallel:* two or more dispatch units (any mix) with no unresolved cross-agent dependencies among them, dispatched simultaneously. Requires version control workspace isolation.
+**One Task, one session.** The dispatch unit is a single Task. Each dispatched Task gets its own background session in its own worktree, so two Ready Tasks assigned to the same Worker are dispatched as two sessions rather than queued behind one another. There are no dispatch modes to choose between and nothing to group.
 
-**Parallel dispatch prerequisites:** Version control must be initialized (established during Manager 1 initiation per `{SKILL_PATH:apm.manage}` §2.1 First Manager Initiation). If version control is not active, fall back to sequential dispatch. Recommend the User configure platform tool approvals for Workers to minimize interactive wait times during parallel execution.
+**Session naming:** `<slug>-<stage>.<task>`, for example `build-agent-1.2`. The same string names both the session and its worktree.
 
-Before dispatching a ready unit, check whether a pending report would unlock Tasks that combine well with the current unit. If it is the only outstanding report, waiting costs little. If multiple reports are pending or no plausible combination exists, dispatch immediately.
+**Two identifiers per session.** Launching prints a short id; the full session id is read with `claude agents --json`. They are not interchangeable: the short id addresses `attach`, `logs`, `stop` and `rm`, and only the full id resumes a session. Record both in the Task row's Session column at dispatch, because a resume attempted with the short id starts a copy that has lost the worktree.
 
-**Wait state:** When no Tasks are Ready but Workers are still active, communicate what was processed, what is pending, and what the User should do next. Direct the User to return the next report - if a pending report would unlock a better dispatch combination, recommend prioritizing that report.
+**Concurrency:** keep 3-4 sessions running at once. Beyond that, review latency grows faster than throughput and merge order gets harder to hold.
+
+**Version control prerequisite:** version control must be initialized, which happens during first Manager initiation per `{SKILL_PATH:apm.manage}` §2.1 First Manager Initiation. Dispatch depends on it - a Task branch and a worktree cannot exist without it.
+
+**Tool approvals are a prerequisite, not an optimization.** A dispatched session runs with nobody watching it. If it reaches for a tool the project has not approved, it stops on a prompt that no one can answer: it does not fail, it waits, and the only visible symptom is a report that never arrives. Before the first dispatch of a session, confirm with the User that the tool surface Workers need is pre-approved for this project. A session found waiting rather than working is the first thing to check.
+
+**Dispatch plan approval.** At the start of each Stage, present the Stage's dispatch plan and wait for the User: which Tasks go out, to which Workers, in what order, and how many run at once. Dispatch nothing until the User approves. Within an approved Stage, dispatch newly Ready Tasks as reviews free them without asking again - the gate is per Stage, not per Task.
+
+**Wait state:** When no Tasks are Ready but sessions are still working, say what was processed and what is outstanding. Nothing is required of the User here; reports arrive on their own.
 
 ### 2.5 Version Control Standards
 
-Version control provides workspace isolation during parallel dispatch. Each dispatch unit operates on its own feature branch, and you coordinate all merges during Task Review. When multiple repositories are listed in the Tracker's Version Control table, identify which repository each Task operates in from the Spec's Workspace section. If the User initially declined version control but later requests it mid-session, initialize it: run `git init` if needed, detect or confirm the base branch, establish conventions with the User, update Rules and the Tracker, then proceed with branch-based dispatch.
+Every Task works in its own worktree, and you coordinate all merges during Task Review. When multiple repositories are listed in the Tracker's Version Control table, identify which repository each Task operates in from the Spec's Workspace section. If the User initially declined version control but later requests it mid-session, initialize it: run `git init` if needed, detect or confirm the base branch, establish conventions with the User, update Rules and the Tracker, then proceed with dispatch.
 
-**Branch standards:** Every dispatch unit gets its own feature branch off the base branch per the branch convention in the Tracker. APM terminology (Task IDs, Stage numbers, agent identifiers) does not appear in branch names, commit messages, or worktree directory names - these reflect the actual work, not the framework managing it. A batch of sequential Tasks assigned to the same Worker shares one branch.
+**Branch standards:** Every Task gets its own branch off the base branch per the branch convention in the Tracker, cut by the Worker inside its worktree. APM terminology (Task IDs, Stage numbers, agent identifiers) does not appear in branch names, commit messages, or worktree directory names - these reflect the actual work, not the framework managing it.
 
-**Worktree standards:** Worktrees are created only for parallel dispatch. Each parallel dispatch unit gets its own worktree so all parallel Workers operate in isolated directories and the main working directory remains on the base branch for merge operations. For sequential dispatch, the Worker operates in the main working directory on their feature branch.
+**Worktree standards:** The worktree is created by the launch, not by a separate `git worktree add`. It lands at `<checkout>/.claude/worktrees/<session name>`, on a branch named `worktree-<session name>`, and is left locked. The Worker cuts its own Task branch from the base inside it, so the automatically created branch is never worked on.
 
-- *Layout:* Worktrees placed under `.apm/worktrees/` per §4.3 Branch and Worktree Standards.
-- *Concurrency limit:* maximum 3-4 concurrent worktrees.
-- *Lifecycle:* short-lived - created before dispatch, removed after merge.
+**Do not relocate the worktree.** Rules reach a session by walking up from its working directory, and that path lies below the checkout root only because the launch puts it there. A worktree placed anywhere else does not see Rules at all, and nothing reports the omission.
 
-Worktrees contain only tracked files; if a Worker needs untracked assets, note this in the Task Prompt. When `.apm/` is tracked (or partially tracked), the worktree may contain `.apm/` files but all APM runtime operations (Task Logs, bus communication) must target the project root's `.apm/`, not the worktree copy. You need to read Task Logs and bus files for review before merging, so they must be accessible from the main working directory. Include this guidance in the Task Prompt's Workspace section for worktree dispatch.
+**Bus access:** the worktree holds only tracked files, so it has no `.apm/`. Create a symbolic link named `.apm` inside the worktree pointing at the absolute path of the workspace `.apm/`, so Task Logs and bus files resolve to the one shared copy that you can read during review. Write the ignore entry for it as `.apm`, with no trailing slash - a trailing slash matches directories only, leaves the link untracked, and blocks release of the session later. If a Worker needs untracked assets, note this in the Task Prompt.
+
+**Lifecycle:** short-lived. The worktree is created at dispatch and released after the Task's branch is merged, per `{GUIDE_PATH:task-review}` §2.5 Merge Standards.
 
 ### 2.6 Delivery Standards
 
-Bus directories and files are created by the Planner during the Planning Phase - do not re-create them. Before writing to a Worker's Task Bus, clear the Worker's Report Bus (`.apm/bus/<agent-slug>/report.md`) via terminal (e.g., `truncate -s 0` or shell redirection). Skip clearing on first Task Prompt to a Worker when no report exists. Read the Task Bus before writing to it per `{SKILL_PATH:apm-communication}` §4 Message Bus Protocol. When dispatching multiple sequential Tasks to the same Worker, send them as a batch in a single Task Bus message per §4.5 Batch Envelope Format.
+Bus directories and files are created by the Planner during the Planning Phase - do not re-create them. Before writing to a Worker's Task Bus, clear the Worker's Report Bus (`.apm/bus/<agent-slug>/report.md`) via terminal (e.g., `truncate -s 0` or shell redirection). Skip clearing on first Task Prompt to a Worker when no report exists. Read the Task Bus before writing to it per `{SKILL_PATH:apm-communication}` §4 Message Bus Protocol. One Task Bus message carries one Task Prompt.
+
+**The bus is the source of truth and the trigger is only a pointer.** Write the prompt to the bus first, then send the fixed trigger text per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages. A trigger carries no Task content and never asks the session to run a skill. If a trigger is lost, the prompt is still on the bus and the Worker's manual fallback retrieves it.
 
 ### 2.7 Non-APM Agent Dispatch
 
@@ -96,15 +99,14 @@ Dispatch assessment followed by per-Task analysis and prompt construction for ea
 
 ### 3.1 Dispatch Assessment
 
-Assess dispatch opportunities from current project state per §2.4 Dispatch Standards. Before each dispatch decision, assess the current project state visibly in chat under the header **Dispatch Assessment:** covering which Tasks are Ready, what dependency relationships exist among them, and what dispatch mode best serves progress and efficiency. Each dispatch cycle is a fresh assessment.
+Assess dispatch opportunities from current project state per §2.4 Dispatch Standards. Present the assessment visibly in chat under the header **Dispatch Assessment:** covering which Tasks are Ready, what dependency relationships exist among them, and how many sessions to run at once. Each dispatch cycle is a fresh assessment.
 
 Perform the following actions:
 1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
 2. Identify Ready Tasks from the Tracker. Cross-reference the Dependency Graph for newly unblocked Tasks.
-3. Check whether a pending report would unlock Tasks that combine well with currently Ready Tasks. If waiting costs little, consider it. Otherwise proceed.
-4. Group Ready Tasks by assigned Worker. Form dispatch units per §2.4 Dispatch Standards - assess all three modes (single, batch, parallel) before committing to a dispatch plan.
-5. Assess parallel opportunity: if 2+ dispatch units exist with no unresolved cross-agent dependencies - parallel dispatch.
-6. Formulate dispatch plan: which Workers receive which units, whether parallel. For each Task, continue to per-Task analysis.
+3. Order Ready Tasks by how much downstream work each unblocks, and choose how many to dispatch now within the concurrency guidance in §2.4 Dispatch Standards.
+4. If this is the Stage's first dispatch, present the Stage's dispatch plan and wait for the User's approval per §2.4 Dispatch Standards. Launch nothing before it arrives. Within a Stage the User already approved, continue without asking again.
+5. For each Task in the dispatch plan, continue to per-Task analysis.
 
 ### 3.2 Per-Task Analysis
 
@@ -112,8 +114,8 @@ Execute for each Task in the dispatch plan.
 
 Perform the following actions:
 1. Read the Task's Dependencies field from the Plan. If "None," skip dependency context steps.
-2. For each dependency, determine context depth per §2.1 Dependency Context Standards - check Worker Handoff state and auto-compaction notes in the Tracker, classify as same-agent or cross-agent, check cross-agent overrides, and trace upstream when ancestors are relevant. For Workers that recovered from auto-compaction, provide more comprehensive same-agent dependency context since reconstructed context may lack working nuance.
-3. For cross-agent dependencies, read unique producer Task Logs and note key outputs, file paths, and integration details. When multiple Tasks in this dispatch cycle depend on the same producer, read that log once and extract from context for subsequent Tasks.
+2. For each dependency, trace upstream when ancestors established patterns, schemas, or contracts this Task must follow, per §2.1 Dependency Context Standards. Context depth does not vary with who produced the dependency.
+3. Read each unique producer Task Log and note key outputs, file paths, and integration details. When several Tasks in this dispatch cycle share a producer, read that log once and reuse it from context.
 4. Extract Spec content relevant to this Task per §2.2 Task Prompt Content Standards. The Spec is in context from session start and refreshed on any modification. A fresh read is warranted at the start of a new Stage's first dispatch; per-Task re-reads of an unchanged Spec are not needed.
 5. Extract Task definition fields from the Plan: Objective, Steps, Guidance, Output, Validation. When Guidance references Spec sections, resolve those references and extract the referenced content per §2.2 Task Prompt Content Standards. Transform steps into actionable instructions, incorporating Guidance and relevant Spec content.
 
@@ -124,15 +126,20 @@ Assemble the Task Prompt and deliver via the Message Bus.
 Perform the following actions:
 1. Construct YAML frontmatter per §4.1 Task Prompt Format.
 2. Construct prompt body: Task Reference, Context from Dependencies (if applicable), Objective, Detailed Instructions, Workspace, Expected Output, Validation Criteria, Instruction Accuracy, Task Iteration, Task Logging instructions, Reporting Instructions.
-3. Create a feature branch off the repository's base branch per §2.5 Version Control Standards. For parallel dispatch, create a worktree: `git worktree add .apm/worktrees/<branch-slug> -b <branch-name>`. Include the branch name (sequential) or worktree path (parallel) in the Workspace section.
-4. Record the branch name in the Task row's Branch column when updating the Tracker.
-5. Clear the incoming Report Bus per §2.6 Delivery Standards.
-6. Read the Worker's Task Bus, then write the Task Prompt to it: `.apm/bus/<agent-slug>/task.md`. For batches, use §4.5 Batch Envelope Format.
-7. Direct the User to the Worker's chat per `{SKILL_PATH:apm-communication}` §2.1 Direct Communication:
-   - If the Worker is not yet initialized - direct the User to start a new chat and run `{SKILL_NAME:work} <agent-id>`. The Worker detects the pending Task Prompt during init and begins executing. Only on first dispatch to this Worker.
-   - If the Worker is already initialized - direct the User to run `{SKILL_NAME:task}` in the Worker's chat.
-   - For batch dispatch - summarize what the Worker will receive (number of Tasks, sequential execution).
-   - For parallel dispatch - list each Worker with its required action.
+3. Name the Task branch per the convention in the Tracker and state it, with the base branch, in the Workspace section. The Worker cuts it inside its worktree; you do not create it here.
+4. Clear the incoming Report Bus per §2.6 Delivery Standards.
+5. Read the Worker's Task Bus, then write the Task Prompt to it: `.apm/bus/<agent-slug>/task.md`.
+6. Launch the session from the Task's repository directory:
+
+   ```
+   claude --bg --name <slug>-<stage>.<task> --worktree <slug>-<stage>.<task> "{SKILL_NAME:work} <slug>"
+   ```
+
+   The launch prompt is what starts the Worker skill. A trigger message cannot: role skills accept only a person's invocation, and a launch prompt counts as one.
+7. Wait until the session appears in the agent listing and its worktree exists on disk.
+8. Create the `.apm` link inside the new worktree per §2.5 Version Control Standards.
+9. Read both session identifiers with `claude agents --json` and record them, with the branch name, in the Task row when updating the Tracker per §2.4 Dispatch Standards.
+10. Send the fixed trigger text to the session by name per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages.
 
 ### 3.4 Follow-Up Task Prompt Construction
 
@@ -145,7 +152,8 @@ Perform the following actions:
 4. Construct the follow-up prompt per §4.2 Follow-Up Format. Same `log_path` as the original.
 5. Clear the incoming Report Bus per §2.6 Delivery Standards.
 6. Read the Worker's Task Bus, then write to it: `.apm/bus/<agent-slug>/task.md`.
-7. Direct the User to the Worker per §3.3 Task Prompt Construction step 7.
+7. Resume the Task's session in the background using the full session id from its Task row, then confirm it came back under the same id instead of as a copy. A copy means the short id was used or the session was never stopped.
+8. Send the fixed trigger text to the session by name per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages. The session keeps the execution context of its first attempt, so the follow-up addresses what changed rather than restating what the session already did.
 
 ---
 
@@ -176,18 +184,16 @@ has_dependencies: true
 **Prompt Body Sections:**
 - *Title.* `#` heading using Task ID and title. Each section uses `##` heading:
 - *Task Reference:* Task ID and assigned agent.
-- *Context from Dependencies.* Included when `has_dependencies: true`. Format depends on dependency type per §2.1 Dependency Context Standards.
-  - *Same-agent.* "Building on your previous work:" intro - `**From Task <N>.<M>:**` with key outputs and recall points - `**Integration Approach:**` with brief guidance.
-  - *Cross-agent.* "This Task depends on work completed by [Producer Agent]:" intro - `**Integration Steps:**` numbered file reading instructions - `**Producer Output Summary:**` key features, files, interfaces, constraints - `**Upstream Context:**` for relevant ancestors.
+- *Context from Dependencies.* Included when `has_dependencies: true`. One form for every dependency per §2.1 Dependency Context Standards: an intro naming what this Task depends on - `**Integration Steps:**` numbered file reading instructions - `**Producer Output Summary:**` key features, files, interfaces, constraints - `**Upstream Context:**` for relevant ancestors. Say which Worker produced the work when it helps the reader locate it, and write the same depth either way.
 - *Objective:* Single-sentence Task goal, optionally enhanced with coordination-level context.
 - *Detailed Instructions:* Plan steps transformed into actionable instructions with integrated Spec content and guidance.
-- *Workspace:* Working directory and branch name for sequential dispatch, or worktree path and project root for parallel dispatch. For worktree dispatch, instruct the Worker to perform code work in the worktree but resolve all `.apm/` paths (Task Log, bus files) from the project root. Worker operates in the specified workspace, commits there, and notes it in the Task Log. Workers do not merge.
+- *Workspace:* The worktree path, the Task branch to cut, and the base branch to cut it from. The Worker works and commits in the worktree and notes it in the Task Log. `.apm/` paths resolve through the link in the worktree to the one shared copy. Workers do not merge.
 - *Expected Output:* Deliverables from Plan Output field.
 - *Validation Criteria:* From Plan Validation field.
 - *Instruction Accuracy:* The objective and expected output are authoritative - deliver those. However, the detailed instructions and steps were constructed from planning documents and may contain inaccurate details, missed prerequisites, or outdated assumptions about the codebase. When a specific instruction contradicts what the codebase actually shows, validate the actual state rather than persisting with the instruction as written.
 - *Task Iteration:* When validation fails, investigate before fixing - read error output, trace the cause, understand what went wrong. Apply one targeted change per iteration. When a fix does not resolve the issue, spawn a debug subagent with structured instructions: the error output, what you investigated and attempted, relevant file paths, and expected vs actual behavior. Direct it to trace the root cause and propose a fix. Validate the subagent's findings before applying. When the root cause could stem from multiple independent areas, spawn separate subagents in parallel. If unresolved after subagent investigation, report with Partial status.
 - *Task Logging:* Path and reference to `{GUIDE_PATH:task-logging}` §3.1 Task Log Procedure.
-- *Task Report:* Instruction to output a Task Report for User to return to Manager.
+- *Task Report:* Instruction to write the report to the Report Bus and send the fixed trigger text back.
 
 ### 4.2 Follow-Up Format
 
@@ -199,11 +205,11 @@ Follow-up Task Prompts use the same structure as §4.1 Task Prompt Format with t
 
 ### 4.3 Branch and Worktree Standards
 
-Branch naming follows the convention recorded in the Tracker Version Control table. Branch names are descriptive of the actual work; for batches, the name reflects the batch scope. Worktrees are placed under `.apm/worktrees/`. Each subdirectory name is derived from the branch name (e.g., replacing `/` with `-`). Each worktree directory contains a full checkout of all tracked files. Untracked files are not present.
+Branch naming follows the convention recorded in the Tracker Version Control table, and names describe the actual work. Worktree location is not a choice: the launch places it at `<checkout>/.claude/worktrees/<session name>`, where the session name is `<slug>-<stage>.<task>`. The directory holds a full checkout of all tracked files; untracked files are not present, which is why the bus is reached through a link per §2.5 Version Control Standards.
 
 ### 4.4 Tracker VC Entry Format
 
-VC configuration recorded in the Version Control table within the Tracker, with one row per repository. Branch state is tracked per-Task in the Task table's Branch column - an incoming Manager reads Task rows to rebuild working VC context.
+VC configuration recorded in the Version Control table within the Tracker, with one row per repository. Per-Task state lives in the Task table: the Branch column holds branch state and the Session column holds the two session identifiers. An incoming Manager reads Task rows to rebuild working version control and session context.
 
 **Format:**
 
@@ -215,46 +221,21 @@ VC configuration recorded in the Version Control table within the Tracker, with 
 | <repo-name> | <branch-name> | <convention> | <convention> |
 ```
 
-### 4.5 Batch Envelope Format
-
-When sending multiple Tasks to a Worker in a batch, the Task Bus file uses this structure:
-
-**YAML Frontmatter Schema:**
-```yaml
----
-batch: true
-batch_size: <N>
-tasks:
-  - stage: 1
-    task: 1
-    log_path: ".apm/memory/stage-01/task-01-01.log.md"
-  - stage: 1
-    task: 2
-    log_path: ".apm/memory/stage-01/task-01-02.log.md"
----
-```
-
-**Field Descriptions:**
-- `batch`: Always `true` for batch envelopes.
-- `batch_size`: Total Tasks in the batch.
-- `tasks[].stage`: Stage number.
-- `tasks[].task`: Task number within Stage.
-- `tasks[].log_path`: Pre-constructed path for the Task Log, following the same pattern as single Task Prompts.
-
-**Body:** Individual Task Prompts separated by `---` delimiters. Each Task Prompt retains its full structure (YAML frontmatter and body) as if standalone.
-
 ---
 
 ## 5. Common Mistakes
 
 - *Planning document paths in Task Prompts:* Workers are scoped to their Task Prompt and Rules - the Spec and Plan are not in their context. A reference like "see the Spec" or "check the Plan" breaks self-containedness. Extract and embed the relevant content instead.
-- *Under-scoped cross-agent context:* Cross-agent dependencies require comprehensive context regardless of perceived simplicity. Workers do not interact with Memory and have no access to other Workers' work - the only cross-agent context they receive is what you embed in the Task Prompt.
-- *Stale dependency classification after Handoff:* When a Worker Handoff is detected, previous-Stage same-agent dependencies must be reclassified as cross-agent. Check the Tracker's cross-agent overrides before constructing dependency context.
+- *Thin dependency context because the same Worker produced it:* A Worker's earlier session is gone. Its successor knows only what the prompt and the Worker's `handoff.md` carry, so a dependency the same Worker produced needs the same depth as anyone else's.
+- *Asking the User to carry a message:* The bus and the trigger move work. Telling the User to open a chat, paste a report, or run a skill on the normal path reintroduces the relay the dispatch cycle exists to remove.
+- *Writing a trigger that asks for a skill:* A session asked to invoke a role skill refuses, and the Task never starts. Triggers name a bus path and nothing else.
 - *Shallow dependency chains:* A Task's direct dependency may itself depend on earlier work that established patterns, schemas, or contracts. Trace upstream until an intermediate node fully abstracts what came before.
 - *Vague instructions:* "Implement the feature properly" vs "Implement POST /api/users with email validation using express-validator, returning 201 on success."
 - *Dispatching before merging dependencies:* If Task B depends on Task A's output and A was on a separate branch, A must be merged before B's branch is created.
 - *Assuming base branch name:* Read the base branch from the Tracker's Version Control table for the relevant repository. Do not assume `main` or `master`.
-- *Forgetting VC state in Handoff:* Ensure Task rows reflect current branch state before Handoff. Include active branches, worktrees, and pending merges in the Handoff Log.
+- *Forgetting session and VC state in Handoff:* Task rows must reflect current branch and session state before Handoff. Include active branches, live sessions with both identifiers, and pending merges in the Handoff Log - an incoming Manager cannot resume a session whose full id was never written down.
+- *Resuming with the short id:* Only the full session id continues a session. The short id starts a copy that has lost the worktree, and the copy looks healthy.
+- *Moving the worktree:* The launch decides where the worktree goes. Relocating it silently cuts the session off from Rules.
 - *Committing build artifacts:* Do not commit generated files. Create or update `.gitignore` for build directories.
 
 ---
