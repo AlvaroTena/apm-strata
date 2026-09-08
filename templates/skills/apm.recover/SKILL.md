@@ -19,7 +19,7 @@ The skill argument - if provided - will be listed here: `{ARGS}`. If empty, then
    - Worker: `{SKILL_PATH:apm.work}`
    Reading the initiation skill alone is not sufficient - the documents it references contain the procedural knowledge and project state needed for recovery. Skip identity determination and greeting.
 3. Explore project state from the artifacts listed in your initiation skill and the current state of the codebase to reconstruct where work stands. When gaps remain that artifacts cannot fill, ask the User for brief context before continuing.
-4. Note the recovery event: if you are the Manager, add a working note to the Tracker; if you are a Worker, include it in the next Task Report. Recovery does not increment the instance number - you continue as the same instance. When eventually performing Handoff, note which portions of working context are reconstructed rather than first-hand.
+4. Note the recovery event after this skill ends, not during it - recovery reconstructs context and writes nothing. If you are the Manager, add a working note to the Tracker with your next Tracker update; if you are a Worker, include it in the next Task Report. Recovery does not increment the instance number - you continue as the same instance. When eventually performing Handoff, note which portions of working context are reconstructed rather than first-hand.
 5. Continue with duties.
 
 ---
