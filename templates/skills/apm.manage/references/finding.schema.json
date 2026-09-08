@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Review lens findings",
+  "description": "The findings a review lens returns. A finding describes one problem and its correction. Lenses do not grade: no severity, priority, confidence, or rank field is permitted, and the coordinator assigns the verdict during triage. The root is an object rather than an array so the schema can be passed to an external lens that constrains its output through a structured-output API.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["findings"],
+  "properties": {
+    "findings": {
+      "type": "array",
+      "description": "Every finding this lens produced. An empty array is valid for any lens except the adversarial one.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "location",
+          "trigger_condition",
+          "guard_snippet",
+          "potential_consequence"
+        ],
+        "properties": {
+          "location": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Where the problem is: file:line or file:line-range for code, the section heading for a document, or \"general\" when it spans the whole artifact."
+          },
+          "trigger_condition": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The problem, or the condition that exposes it, in one line."
+          },
+          "guard_snippet": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The concrete correction: the guard, assertion, revision, or missing content that closes the problem."
+          },
+          "potential_consequence": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What goes wrong if the artifact ships as it is."
+          }
+        }
+      }
+    }
+  }
+}
