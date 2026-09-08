@@ -14,6 +14,12 @@
  * - `isInitialized(vaultPath)`: resolves true when the vault already exists.
  * - `install({ vaultPath, cloneDir, onProgress })`: installs and initializes.
  * - `rulesBlock({ vaultPath, commandPath })`: lines the project must declare.
+ * - `emit({ vaultPath, cloneDir, taskLogPath, reference, claims, onProgress })`:
+ *   ingests a task log and its claims, resolving to
+ *   { pagePath, sourceId, claimIds, changedPaths }.
+ * - `audit({ vaultPath, cloneDir, asOf, onProgress })`: audits the substrate,
+ *   resolving to { asOf, lint, disputed }, where `lint` is a markdown report
+ *   and `disputed` is a list of { id, text, assessment, page, reasons }.
  *
  * @module src/services/knowledge/index
  */

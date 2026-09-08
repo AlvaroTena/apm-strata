@@ -39,7 +39,8 @@ export const CLIErrorCode = {
   UNKNOWN_CONSUMER: 'UNKNOWN_CONSUMER',
   UNSUPPORTED_PLATFORM: 'UNSUPPORTED_PLATFORM',
   PREREQUISITE_MISSING: 'PREREQUISITE_MISSING',
-  KNOWLEDGE_SETUP_FAILED: 'KNOWLEDGE_SETUP_FAILED'
+  KNOWLEDGE_SETUP_FAILED: 'KNOWLEDGE_SETUP_FAILED',
+  TASK_LOG_INVALID: 'TASK_LOG_INVALID'
 };
 
 /**
@@ -262,6 +263,21 @@ export class CLIError extends Error {
       `Knowledge layer setup failed during ${step}: ${reason}`,
       CLIErrorCode.KNOWLEDGE_SETUP_FAILED,
       { step, reason }
+    );
+  }
+
+  /**
+   * Creates an invalid task log error.
+   *
+   * @param {string} file - Task log path.
+   * @param {string} reason - What is wrong with it.
+   * @returns {CLIError} Formatted error instance.
+   */
+  static taskLogInvalid(file, reason) {
+    return new CLIError(
+      `Cannot read claims from ${file}: ${reason}`,
+      CLIErrorCode.TASK_LOG_INVALID,
+      { file, reason }
     );
   }
 

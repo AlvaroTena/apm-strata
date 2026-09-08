@@ -17,7 +17,7 @@ import { archiveCommand } from './commands/archive.js';
 import { addCommand } from './commands/add.js';
 import { removeCommand } from './commands/remove.js';
 import { statusCommand } from './commands/status.js';
-import { knowledgeInitCommand } from './commands/knowledge.js';
+import { knowledgeInitCommand, knowledgeEmitCommand, knowledgeAuditCommand } from './commands/knowledge.js';
 import { CLI_VERSION, OFFICIAL_REPO_URL } from './core/constants.js';
 import { CLIError } from './core/errors.js';
 import logger from './ui/logger.js';
@@ -71,7 +71,11 @@ function displayHelp() {
   console.log(chalk.cyan.bold('Knowledge:'));
   console.log(`  ${chalk.bold('--consumer <id>')}           Knowledge consumer ${chalk.dim('(default: claude-obsidian)')}`);
   console.log(`  ${chalk.bold('--vault <path>')}            Vault path ${chalk.dim('(default: ./wiki)')}`);
-  console.log(`  ${chalk.bold('--clone-dir <path>')}        Where to install the consumer product`);
+  console.log(`  ${chalk.bold('--clone-dir <path>')}        Where the consumer product lives`);
+  console.log(`  ${chalk.bold('--task-log <path>')}         Task log to ingest ${chalk.dim('(knowledge emit)')}`);
+  console.log(`  ${chalk.bold('--project/--stage/--task')}  Reference the emitted page carries ${chalk.dim('(knowledge emit)')}`);
+  console.log(`  ${chalk.bold('--as-of <date>')}            Provenance freshness date ${chalk.dim('(knowledge audit)')}`);
+  console.log(`  ${chalk.bold('--out <path>')}              Where to write the audit report ${chalk.dim('(knowledge audit)')}`);
   console.log('');
   console.log(chalk.cyan.bold('Archive:'));
   console.log(`  ${chalk.bold('-l, --list')}                List archived sessions`);
@@ -253,6 +257,40 @@ knowledge
   .action(async (options) => {
     try {
       await knowledgeInitCommand(options);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+knowledge
+  .command('emit')
+  .description('Ingest a task log into the knowledge layer')
+  .requiredOption('--task-log <path>', 'Task log to ingest')
+  .requiredOption('--project <name>', 'Project name')
+  .requiredOption('--stage <number>', 'Stage number')
+  .requiredOption('--task <number>', 'Task number')
+  .option('--consumer <id>', 'Knowledge consumer')
+  .option('--vault <path>', 'Vault path')
+  .option('--clone-dir <path>', 'Directory the consumer product lives in')
+  .action(async (options) => {
+    try {
+      await knowledgeEmitCommand(options);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+knowledge
+  .command('audit')
+  .description('Audit the knowledge substrate')
+  .requiredOption('--out <path>', 'Where to write the report')
+  .option('--as-of <date>', 'Provenance freshness date (YYYY-MM-DD)')
+  .option('--consumer <id>', 'Knowledge consumer')
+  .option('--vault <path>', 'Vault path')
+  .option('--clone-dir <path>', 'Directory the consumer product lives in')
+  .action(async (options) => {
+    try {
+      await knowledgeAuditCommand(options);
     } catch (err) {
       handleError(err);
     }
