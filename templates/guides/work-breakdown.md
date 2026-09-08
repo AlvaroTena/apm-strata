@@ -157,6 +157,7 @@ Perform the following actions per §2.5 `{RULES_FILE}` Standards:
    - **From gathered context:** workflow preferences, conventions, or quality requirements from Context Gathering not yet captured in the Spec or the Plan. Version control conventions are excluded - the Manager handles those and appends content to Rules during the start of the Implementation Phase.
    - **Classification:** Separate patterns that apply to all or most Tasks from narrowly Task-specific ones per §2.5 `{RULES_FILE}` Standards. Most projects produce few genuinely universal rules - project-specific constraints and output specifications belong in the Spec or Task guidance even when they apply to multiple Workers.
    - **Existing standards:** what `{RULES_FILE}` already contains; reference rather than duplicate.
+   - **Declaration blocks:** any block already declared per §4.5 Project Declaration Blocks, including one recorded during Context Gathering. Writing the APM_RULES block replaces it in full, so a declaration left out here is a mechanism silently switched off. Carry each one into the new block verbatim.
 2. Determine the target file. Ask the User whether the Rules should be version controlled - if yes, the target file is `CLAUDE.md`; if not, it is `{RULES_FILE}`. When the target is `{RULES_FILE}`, recommend adding it to the project `.gitignore` unless it is already listed there.
 3. Read `{RULES_FILE}` and `CLAUDE.md` (or confirm they do not exist), then write the APM_RULES block to the target file per §4.3 APM_RULES Block. The target file ends with exactly one block and the other file ends with none:
    - If the target file already contains a block, replace it in full - the `APM_RULES {` line through the `} //APM_RULES` marker. Otherwise add the block, creating the target file when it does not exist.
@@ -309,6 +310,51 @@ Each checklist reviews the quality of what its document says, not the implementa
 **Marker ownership:** You never mark a checkbox, not even one you are confident about. Write every item as `- [ ]` and leave it unmarked. The User marks them as part of approving the document, and that act is what the marks mean - an agent marking its own work removes the only signal the checklist carries.
 
 **Parseability:** A dispatch gate blocks work assignment while any checkbox is unmarked, and it reads these files mechanically. Every checkbox begins its line as `- [ ]` with no leading whitespace and nothing before it on the line.
+
+### 4.5 Project Declaration Blocks
+
+Blocks a project declares inside its APM_RULES block to turn a mechanism on. Other surfaces generate these blocks and read them, and a renamed heading or key raises no error - the mechanism finds nothing, does nothing, and says nothing. The headings and keys below are therefore fixed, and they stay in English whatever language the project writes its own rules in.
+
+Declare only the blocks the project uses. An undeclared block is not a defect: the step that reads it reports that nothing is declared and carries on.
+
+```text
+## Tracker
+- type: github-issues
+- query: gh issue list --repo <owner>/<repo> --label apm-deferred --state open --json number,title,url
+- create: gh issue create --repo <owner>/<repo> --label apm-deferred --title "<title>" --body-file <file>
+
+## Knowledge layer
+- consumer: claude-obsidian
+- vault: <absolute path or path relative to the workspace>
+- command: python3 <path to the clone>/scripts/claude-obsidian.py
+
+## External lenses
+- <name>: <command with {staged_dir} as the placeholder>
+
+## Ambiguity taxonomy
+- <category>
+- <category>
+
+## Lens model
+- model: <model>
+
+## Deltas
+- validate: <command>
+```
+
+**Tracker.** Three requirements and no others: the tracker is durable and lives outside session state, it is queried through a single command, and it is declared here. Session state is archived and removed when a session closes, so an item recorded only there dies with the session - which is why the long-horizon backlog does not live under `.apm/`. It does not live in the knowledge layer either: a backlog has to be able to close, and the knowledge layer never archives.
+
+`github-issues` is the only `type` with a defined item body in this version. Another type declares the same two commands and uses the same body. The body of a deferred item carries:
+- *Origin:* the project, session, and Task the item came from.
+- *Evidence:* path of the finding, or of the Task Log that produced it.
+- *Reason:* why the work was deferred instead of done.
+- *State:* whether the item is open, taken into a later objective, or closed.
+
+**Knowledge layer.** Printed by `apm knowledge init`, which prints the block without writing it. Declaring it is what connects the layer to the guides that read it, per `{GUIDE_PATH:context-gathering}` §3.3 Knowledge Layer Discovery.
+
+**Ambiguity taxonomy.** Replaces the default categories used during Ambiguity Resolution per `{GUIDE_PATH:context-gathering}` §3.4 Ambiguity Resolution. One category per line.
+
+**External lenses, Lens model, Deltas.** Read by surfaces outside this guide. They are listed here so a project has one place that enumerates every block it can declare.
 
 ---
 
