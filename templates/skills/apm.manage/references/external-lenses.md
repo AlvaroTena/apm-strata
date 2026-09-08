@@ -10,6 +10,8 @@ What an external lens adds is that it is not this model. A reviewer from another
 
 The canonical shape is `{SKILLS_DIR}/apm.manage/references/finding.schema.json`. Its root is an object holding a `findings` array rather than a bare array, because structured-output APIs reject a schema whose root is an array.
 
+**Verify an external lens by running it, never by reading its documentation or its source.** These are third-party command lines and their flags move between releases: an invocation confirmed against a tool's own source code stopped working 35 releases later, on a flag that was simply removed. Run the command once, on real staged material, before you rely on a lens - and again after the tool updates.
+
 ---
 
 ## 2. Declaration
@@ -19,7 +21,7 @@ The project declares its external lenses in its rules block, under an `## Extern
 ```markdown
 ## External lenses
 
-- `codex-adversarial`: `codex exec --sandbox read-only ... --add-dir {staged_dir} ...`
+- `codex-adversarial`: `codex exec --sandbox read-only --skip-git-repo-check ... --add-dir {staged_dir} ...`
 - `cursor-adversarial`: `agent -p --mode ask --output-format json "..."`
 ```
 
@@ -32,7 +34,7 @@ A project that declares no external lenses runs the shipped lenses alone.
 ```bash
 codex exec \
   --sandbox read-only \
-  --ask-for-approval never \
+  --skip-git-repo-check \
   --json \
   --output-schema {SKILLS_DIR}/apm.manage/references/finding.schema.json \
   -C <directory holding no AGENTS.md> \
@@ -42,9 +44,13 @@ codex exec \
   "<lens prompt>" < /dev/null
 ```
 
-Pass the prompt as an argument rather than on stdin, and redirect stdin from `/dev/null` - Codex has open bugs around terminal detection that hang or misread a piped prompt.
+`--skip-git-repo-check` is not optional here. Codex refuses to run outside a directory it trusts, and it decides trust by looking for a git repository, so the scratch directory the next paragraph calls for is exactly the case it rejects: without the flag it aborts with `Not inside a trusted directory and --skip-git-repo-check was not specified.` before doing any work.
 
 Run it from a directory that holds no `AGENTS.md`. Codex reads the `AGENTS.md` chain of its working directory and offers no flag to skip it, so a lens launched from inside a project inherits that project's instructions on top of its own - the review is then partly steered by the same document the author was steered by. An empty scratch directory as `-C`, with the material reachable through `--add-dir`, keeps the lens reading only what you staged.
+
+Pass the prompt as an argument and redirect stdin from `/dev/null`. When stdin is not a terminal Codex reads it and appends it to the prompt, announcing `Reading additional input from stdin...`; `/dev/null` hands it an immediate end of input so nothing unintended joins the lens prompt.
+
+Codex silently ignores `--json` and `--output-schema` while MCP servers are active, and emits malformed output instead of the shape you asked for. The failure is quiet: no warning, no error, just output that does not match the schema. This is the same hazard as §5 MCP Configuration but a worse symptom - there the lens fails loudly on context, here it returns something that looks like findings and is not. Launch a Codex lens with the MCP servers off, and validate its output against the schema before triaging it.
 
 ---
 
