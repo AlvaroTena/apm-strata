@@ -115,12 +115,13 @@ Three sequential steps per report (processing, log review, outcome determination
 Execute when User runs `{SKILL_NAME:review}` or returns with a Task Report (or batch report) from a Worker.
 
 Perform the following actions:
-1. Read the report from the Report Bus (`.apm/bus/<agent-slug>/report.md`).
-2. If batch report (`batch: true` in frontmatter): the report contains per-Task outcomes in a `tasks` array (each with `stage`, `task`, `status`) and fields `completed`, `stopped_early`. Process each completed Task individually through §3.2 Task Log Review and §3.3 Review Outcome. Tasks with status `"Not started"` re-enter the dispatch pool.
-3. Check for Handoff indication - look for a statement that the Worker is a new instance and a list of current-Stage Task Logs read. When previous Stages exist, the report also notes that previous-Stage logs were not loaded. If detected, verify the Handoff Log exists. Update Worker tracking in the Tracker: increment the instance number for this Worker. Compare the loaded Task Logs against all Tasks previously completed by this Worker and record cross-agent overrides in the Tracker for any completed Tasks whose logs were not loaded. From this point forward, previous-Stage same-agent dependencies for this Worker are treated as cross-agent.
-4. Check for auto-compaction indication - a Worker that recovered from auto-compaction notes it in the Task Report. If detected, update Worker tracking Notes in the Tracker (e.g., "auto-compacted, recovered"). No dependency reclassification - the Worker continues as the same instance. Provide slightly more comprehensive dependency context in future Task Prompts for this Worker.
-5. Update dispatch tracking: mark this Worker as available, note completed Task(s) for readiness assessment.
-6. Merge completed branch per §2.5 Merge Standards if dependent Tasks need it.
+1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
+2. Read the report from the Report Bus (`.apm/bus/<agent-slug>/report.md`).
+3. If batch report (`batch: true` in frontmatter): the report contains per-Task outcomes in a `tasks` array (each with `stage`, `task`, `status`) and fields `completed`, `stopped_early`. Process each completed Task individually through §3.2 Task Log Review and §3.3 Review Outcome. Tasks with status `"Not started"` re-enter the dispatch pool.
+4. Check for Handoff indication - look for a statement that the Worker is a new instance and a list of current-Stage Task Logs read. When previous Stages exist, the report also notes that previous-Stage logs were not loaded. If detected, verify the Handoff Log exists. Update Worker tracking in the Tracker: increment the instance number for this Worker. Compare the loaded Task Logs against all Tasks previously completed by this Worker and record cross-agent overrides in the Tracker for any completed Tasks whose logs were not loaded. From this point forward, previous-Stage same-agent dependencies for this Worker are treated as cross-agent.
+5. Check for auto-compaction indication - a Worker that recovered from auto-compaction notes it in the Task Report. If detected, update Worker tracking Notes in the Tracker (e.g., "auto-compacted, recovered"). No dependency reclassification - the Worker continues as the same instance. Provide slightly more comprehensive dependency context in future Task Prompts for this Worker.
+6. Update dispatch tracking: mark this Worker as available, note completed Task(s) for readiness assessment.
+7. Merge completed branch per §2.5 Merge Standards if dependent Tasks need it.
 
 ### 3.2 Task Log Review
 

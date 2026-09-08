@@ -80,6 +80,8 @@ Archive and workspace context setup (building on initiation), three progressive 
 
 ### 3.1 Pre-Round Context
 
+Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
+
 **Archives:** If archives were identified as relevant during initiation, explore them now. For each relevant archive, {ARCHIVE_EXPLORER_GUIDANCE}. Verify archived findings against the current codebase using the handles the archive explorer provides per §2.5 Exploration and Research Standards. Integrate verified context as a baseline - focus subsequent questions on delta rather than re-establishing what was already known.
 
 **Deep exploration:** When the workspace contains codebases relevant to the project, explore all of them before entering question rounds - not selectively. Questions asked without baseline knowledge of a relevant codebase will be poorly targeted. For substantial research, {PLANNER_SUBAGENT_GUIDANCE}

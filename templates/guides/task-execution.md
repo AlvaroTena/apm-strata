@@ -61,10 +61,11 @@ Sequential flow from Task Prompt receipt through completion. Task Validation and
 ### 3.1 Task Prompt Receipt
 
 On Task receipt, perform the following actions:
-1. Check for batch envelope: if Task Bus contains `batch: true` in frontmatter, it contains multiple Task Prompts separated by `---` delimiters. Execute each Task sequentially per §2.6 Batch Rules.
-2. Verify `agent` in YAML frontmatter matches your assigned identity. Validate the bus directory matches `agent` per `{SKILL_PATH:apm-communication}` §4.1 Bus Identity Standards. If mismatch, decline per `{SKILL_PATH:apm.work}` §5 Operating Rules.
-3. If Workspace section present: switch to the specified branch or worktree path before starting work.
-4. If `has_dependencies: true`, continue to Context Integration, otherwise proceed to §3.3 Task Execution.
+1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
+2. Check for batch envelope: if Task Bus contains `batch: true` in frontmatter, it contains multiple Task Prompts separated by `---` delimiters. Execute each Task sequentially per §2.6 Batch Rules.
+3. Verify `agent` in YAML frontmatter matches your assigned identity. Validate the bus directory matches `agent` per `{SKILL_PATH:apm-communication}` §4.1 Bus Identity Standards. If mismatch, decline per `{SKILL_PATH:apm.work}` §5 Operating Rules.
+4. If Workspace section present: switch to the specified branch or worktree path before starting work.
+5. If `has_dependencies: true`, continue to Context Integration, otherwise proceed to §3.3 Task Execution.
 
 ### 3.2 Context Integration
 

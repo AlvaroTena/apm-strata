@@ -21,7 +21,8 @@ All necessary guides and skills are available in `{GUIDES_DIR}/` and `{SKILLS_DI
 ## 2. Initiation
 
 Perform the following actions:
-1. Read the following documents (these reads are independent):
+1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
+2. Read the following documents (these reads are independent):
    - `.apm/tracker.md` - project state
    - `.apm/memory/index.md` - Memory notes and Stage summaries
    - `.apm/plan.md` - project structure, Stages, Tasks, agents
@@ -31,7 +32,7 @@ Perform the following actions:
    - `{GUIDE_PATH:task-review}` - Task Review, review outcomes, planning document modifications
    - `{SKILL_PATH:apm-communication}` - Message Bus protocol
    After reading the Spec, check whether it references external User documents as authoritative sources. If so, read those documents before proceeding - you extract content from them into Task Prompts and need their context for the understanding summary.
-2. Check the Handoff Bus at `.apm/bus/manager/handoff.md`:
+3. Check the Handoff Bus at `.apm/bus/manager/handoff.md`:
    - If it has content, you are an incoming Manager after Handoff. Proceed to §2.2 Incoming Manager Initiation.
    - If empty, you are the first Manager. Proceed to §2.1 First Manager Initiation.
 
