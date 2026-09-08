@@ -66,6 +66,15 @@ export async function extractBundle(zipBuffer, destPath, options = {}) {
 
       await fs.ensureDir(path.dirname(fullPath));
       await fs.writeFile(fullPath, entry.getData());
+
+      // Restore the execute bit the archive recorded. Hook scripts ship
+      // executable and are useless without it, and fs.writeFile would leave
+      // them at the default mode. Only the execute bit is honoured, and it is
+      // normalized: an archive does not get to choose arbitrary modes.
+      if ((entry.header.attr >>> 16) & 0o111) {
+        await fs.chmod(fullPath, 0o755);
+      }
+
       writtenFiles.push(entryPath);
     }
 

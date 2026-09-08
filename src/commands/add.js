@@ -13,6 +13,7 @@ import { getRepoSettings } from '../core/config.js';
 import { fetchReleaseByTag, fetchReleaseManifest, findBundleAsset } from '../services/releases.js';
 import { downloadAndExtract } from '../services/extractor.js';
 import { selectAssistant, confirmSecurityDisclaimer } from '../ui/prompts.js';
+import { installApmHooks } from '../services/settings.js';
 import logger from '../ui/logger.js';
 
 /**
@@ -115,6 +116,7 @@ export async function addCommand(options = {}) {
   metadata.installedFiles = installedFiles;
   metadata.cliVersion = CLI_VERSION;
   await writeMetadata(metadata);
+  await installApmHooks();
 
   // Clear content for final output
   logger.clearAndBanner();

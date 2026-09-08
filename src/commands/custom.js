@@ -13,6 +13,7 @@ import { getCustomRepos, addCustomRepo, removeCustomRepo, getRepoSettings, updat
 import { fetchCustomReleases, fetchReleaseManifest, findBundleAsset } from '../services/releases.js';
 import { downloadAndExtract } from '../services/extractor.js';
 import { selectAssistant, selectRelease, selectCustomRepo, inputRepository, confirmAction, confirmDestructiveAction, confirmSecurityDisclaimer } from '../ui/prompts.js';
+import { installApmHooks } from '../services/settings.js';
 import logger from '../ui/logger.js';
 
 /**
@@ -183,6 +184,7 @@ export async function customCommand(options = {}) {
     installedFiles
   });
   await writeMetadata(metadata);
+  await installApmHooks();
 
   // Offer to save repo
   let repoSaved = false;
