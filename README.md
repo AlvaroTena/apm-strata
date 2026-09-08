@@ -39,12 +39,19 @@ npm install -g AlvaroTena/apm-strata
 apm init
 ```
 
-If you already have the upstream CLI and would rather not replace it, install the templates
-from this repository with the command upstream already provides:
+If you already have the upstream CLI and would rather not replace it, you can pull the
+templates with the command upstream already provides:
 
 ```bash
 apm custom -r AlvaroTena/apm-strata
 ```
+
+**That route installs the templates but not the install-time behaviour, and the difference is
+not visible afterwards.** Two things this repository's CLI does are absent from the published
+upstream package: it merges the hook declaration into `.claude/settings.json`, and it restores
+the execute bit that extraction strips from the hook scripts. Without both, the dispatch gate
+is never armed - it does not fail, it simply never runs, and the installation looks complete.
+Use it to read the templates, not to run a session that relies on the gate.
 
 The npm package keeps upstream's name, `agentic-pm`, and is not renamed. The two CLIs are the
 same binary name from different sources, so installing one replaces the other.
