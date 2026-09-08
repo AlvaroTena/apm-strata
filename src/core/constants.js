@@ -41,6 +41,16 @@ export const OFFICIAL_REPO = {
 export const OFFICIAL_REPO_URL = `https://github.com/${OFFICIAL_REPO.owner}/${OFFICIAL_REPO.repo}`;
 
 /**
+ * Repository in owner/repo form.
+ *
+ * npm and GitHub both accept this as a shorthand, so it doubles as the
+ * install specifier for the CLI itself.
+ *
+ * @type {string}
+ */
+export const OFFICIAL_REPO_SPEC = `${OFFICIAL_REPO.owner}/${OFFICIAL_REPO.repo}`;
+
+/**
  * CLI major version used to filter compatible releases.
  * Derived dynamically from package.json version.
  *
@@ -81,6 +91,7 @@ export const GITHUB_API_BASE = 'https://api.github.com';
 export default {
   OFFICIAL_REPO,
   OFFICIAL_REPO_URL,
+  OFFICIAL_REPO_SPEC,
   CLI_MAJOR_VERSION,
   CONFIG_DIR,
   CONFIG_FILE,

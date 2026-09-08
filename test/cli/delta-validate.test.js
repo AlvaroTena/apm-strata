@@ -293,4 +293,41 @@ describe('apm delta validate', () => {
   it('fails when the path does not exist', async () => {
     await expect(deltaValidateCommand('openspec/changes/missing')).rejects.toThrow(/path does not exist/);
   });
+
+  it('fails when a directory holds no delta document', async () => {
+    files.set(path.join(WORKSPACE, 'openspec/changes/empty/notes.md'), '# Notes\n');
+
+    await expect(deltaValidateCommand('openspec/changes/empty')).rejects.toThrow(/no spec\.md found/);
+  });
+
+  it('counts violations across every delta in the tree', async () => {
+    files.set(
+      path.join(WORKSPACE, 'openspec/changes/one/specs/auth/spec.md'),
+      VALID_DELTA.replace('### Requirement: Session Expiry', '### Requirement: session expiry')
+    );
+    files.set(
+      path.join(WORKSPACE, 'openspec/changes/two/specs/auth/spec.md'),
+      VALID_DELTA.replace('The system SHALL bind', 'The system binds')
+    );
+
+    await expect(deltaValidateCommand('openspec/changes')).rejects.toThrow(
+      /Delta validation failed with 2 violation/
+    );
+  });
+
+  it('validates against an empty baseline when the spec is absent', async () => {
+    files.set(
+      path.join(WORKSPACE, 'openspec/changes/new-capability/specs/billing/spec.md'),
+      `## ADDED Requirements
+### Requirement: Invoice Numbering
+The system SHALL number invoices consecutively.
+
+#### Scenario: Two invoices in a row
+- **WHEN** two invoices are issued
+- **THEN** their numbers differ by one
+`
+    );
+
+    await expect(deltaValidateCommand('openspec/changes/new-capability')).resolves.toBeUndefined();
+  });
 });

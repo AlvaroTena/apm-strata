@@ -381,6 +381,101 @@ function withSortedKeys(value) {
 }
 
 /**
+ * Marks the earlier captures of one task log as superseded.
+ *
+ * Each capture is a distinct immutable source, so the previous ones stay in
+ * the ledger as provenance rather than being deleted: a claim retired in an
+ * earlier round still cites one, and a deleted source would leave that
+ * evidence unresolvable. Demoting them from active also stops the audit from
+ * treating a stale capture as live support.
+ *
+ * @param {Object} ledger - Source ledger document, mutated in place.
+ * @param {Object} options - Supersession options.
+ * @param {string} options.sourcePrefix - Path prefix the captures share.
+ * @param {string} options.keep - Identifier of the capture being recorded now.
+ * @returns {string[]} Identifiers demoted by this call, oldest first.
+ */
+function supersedeEarlierCaptures(ledger, { sourcePrefix, keep }) {
+  const demoted = [];
+
+  for (const [id, source] of Object.entries(ledger.sources)) {
+    const locator = source?.origin?.locator;
+    if (typeof locator !== 'string' || !locator.startsWith(sourcePrefix)) continue;
+    if (id === keep || source.review_status === 'superseded') continue;
+
+    ledger.sources[id] = { ...source, review_status: 'superseded' };
+    demoted.push(id);
+  }
+
+  return demoted.sort();
+}
+
+/**
+ * Retires the claims a page no longer makes.
+ *
+ * Re-emitting regenerates the page from the task log, so a claim dropped from
+ * the log disappears from the page. Left untouched in the ledger it would stay
+ * active while pointing at a page that no longer mentions it, and the linter
+ * would not notice because the page still exists. Marking it deprecated
+ * records the withdrawal instead. It is kept rather than deleted, because a
+ * `supersedes` chain in another task log may already cite it.
+ *
+ * @param {Object} ledger - Claim ledger document, mutated in place.
+ * @param {Object} options - Retirement options.
+ * @param {string} options.pagePath - Page being re-emitted.
+ * @param {Set<string>} options.emitted - Claim ids the page now carries.
+ * @param {string} options.title - Page title, used in the note.
+ * @param {string} options.today - Current UTC date.
+ * @returns {string[]} Ids retired by this call.
+ */
+function retireDroppedClaims(ledger, { pagePath, emitted, title, today }) {
+  const retired = [];
+
+  for (const [id, claim] of Object.entries(ledger.claims)) {
+    if (claim?.location?.path !== pagePath) continue;
+    if (emitted.has(id) || claim.assessment === 'deprecated') continue;
+
+    const note = `Retired ${today}: ${title} no longer makes this claim.`;
+    ledger.claims[id] = {
+      ...claim,
+      assessment: 'deprecated',
+      notes: claim.notes ? `${note} ${claim.notes}` : note
+    };
+    retired.push(id);
+  }
+
+  return retired.sort();
+}
+
+/**
+ * Derives a stable claim identity from what the claim says.
+ *
+ * The identity must survive editing the task log, because other task logs
+ * cite it through `supersedes`. A positional identity does not: reordering
+ * the claims section would silently repoint an existing supersession chain at
+ * a different statement. Deriving it from the text instead means the id moves
+ * only when the statement itself changes, which is the case `supersedes`
+ * exists to record.
+ *
+ * Runs of whitespace are collapsed first, so respacing a claim keeps its
+ * identity. Only intra-line whitespace reaches here: the claims parser
+ * requires each claim on one line, deliberately, so that an indentation typo
+ * is reported rather than folded into the claim text.
+ *
+ * @param {string} project - Project the claim belongs to.
+ * @param {string} text - Claim text.
+ * @returns {string} Claim identifier.
+ */
+function claimId(project, text) {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  const digest = crypto
+    .createHash('sha256')
+    .update(`${project}\0${normalized}`, 'utf8')
+    .digest('hex');
+  return `clm-${idFragment(project)}-${digest.slice(0, 20)}`;
+}
+
+/**
  * Serializes a ledger the way the product writes them.
  *
  * @param {Object} ledger - Ledger document.
@@ -563,21 +658,29 @@ export async function emit({ vaultPath, cloneDir, taskLogPath, reference, claims
   const slug = `${idFragment(stage)}-${idFragment(task)}`;
   const projectSlug = idFragment(project);
   const pageRelative = `wiki/apm/${projectSlug}/${slug}.md`;
-  const sourceRelative = `inbox/apm/${projectSlug}/${slug}.md`;
+  const sourcePrefix = `inbox/apm/${projectSlug}/${slug}-`;
   const title = `${project} ${stage}.${task}`;
   const today = utcDate();
 
   onProgress(`Capturing ${path.basename(taskLogPath)}`);
   const taskLogContent = await fs.readFile(taskLogPath, 'utf8');
+  const contentHash = sha256(taskLogContent);
+
+  // The capture is content addressed. A single path per task log cannot work:
+  // re-emitting an edited log would leave the previous source record holding a
+  // hash that no longer matches the bytes at that path, and the consumer
+  // rejects that unconditionally. Naming the copy after its own hash makes a
+  // record and its file impossible to disagree, and keeps the earlier
+  // captures readable instead of overwriting provenance.
+  const sourceRelative = `${sourcePrefix}${contentHash.slice(0, 12)}.md`;
+  const id = sourceId('file', sourceRelative, contentHash);
+
   await fs.ensureDir(path.dirname(path.join(vaultPath, sourceRelative)));
   await fs.writeFile(path.join(vaultPath, sourceRelative), taskLogContent, 'utf8');
 
-  const contentHash = sha256(taskLogContent);
-  const id = sourceId('file', sourceRelative, contentHash);
-
-  const identified = claims.map((claim, position) => ({
+  const identified = claims.map(claim => ({
     ...claim,
-    id: `clm-${projectSlug}-${slug}-${position + 1}`
+    id: claimId(project, claim.claim)
   }));
 
   const sources = await readLedger(vaultPath, VAULT_PATHS.sourceLedger, 'sources');
@@ -593,6 +696,7 @@ export async function emit({ vaultPath, cloneDir, taskLogPath, reference, claims
   const existingPage = await readVaultFile(vaultPath, pageRelative);
 
   sources.document.generated_at = generatedAt;
+  const superseded = supersedeEarlierCaptures(sources.document, { sourcePrefix, keep: id });
   sources.document.sources[id] = {
     origin: { kind: 'file', locator: sourceRelative },
     title,
@@ -602,10 +706,18 @@ export async function emit({ vaultPath, cloneDir, taskLogPath, reference, claims
     content_sha256: contentHash,
     ingested_at: today,
     refresh_due: addYears(today, REFRESH_YEARS),
-    pages: [pageRelative]
+    pages: [pageRelative],
+    ...(superseded.length ? { supersedes: superseded[superseded.length - 1] } : {})
   };
 
   claimLedger.document.generated_at = generatedAt;
+  const retired = retireDroppedClaims(claimLedger.document, {
+    pagePath: pageRelative,
+    emitted: new Set(identified.map(claim => claim.id)),
+    title,
+    today
+  });
+
   for (const claim of identified) {
     claimLedger.document.claims[claim.id] = {
       text: claim.claim,
@@ -653,7 +765,13 @@ export async function emit({ vaultPath, cloneDir, taskLogPath, reference, claims
   onProgress(`Ingesting ${identified.length} claim(s)`);
   const changedPaths = await applyBundle(cloneDir, vaultPath, bundle);
 
-  return { pagePath: pageRelative, sourceId: id, claimIds: identified.map(claim => claim.id), changedPaths };
+  return {
+    pagePath: pageRelative,
+    sourceId: id,
+    claimIds: identified.map(claim => claim.id),
+    retiredClaimIds: retired,
+    changedPaths
+  };
 }
 
 /**
