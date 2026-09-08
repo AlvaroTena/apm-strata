@@ -49,11 +49,17 @@ async function collectFiles(dir, unfiltered) {
       continue;
     }
 
-    if (!item.isFile() || item.name === 'README.md') {
+    if (!item.isFile()) {
       continue;
     }
 
-    if (unfiltered || item.name.endsWith('.md')) {
+    if (unfiltered) {
+      // Whole-directory categories ship what they contain, README included
+      files.push(fullPath);
+      continue;
+    }
+
+    if (item.name.endsWith('.md') && item.name !== 'README.md') {
       files.push(fullPath);
     }
   }
