@@ -20,10 +20,11 @@ The project declares its external lenses in its rules block, under an `## Extern
 
 ```markdown
 ## External lenses
-
-- `codex-adversarial`: `codex exec --sandbox read-only --skip-git-repo-check ... --add-dir {staged_dir} ...`
-- `cursor-adversarial`: `agent -p --mode ask --output-format json "..."`
+- codex-adversarial: codex exec --sandbox read-only --skip-git-repo-check ... --add-dir {staged_dir} ...
+- cursor-adversarial: agent -p --mode ask --output-format json "..."
 ```
+
+Neither the name nor the command is quoted or backticked. The line is read as a name, a colon, and everything after it, so a backtick becomes part of the command and the command then fails to run.
 
 A project that declares no external lenses runs the shipped lenses alone.
 

@@ -13,8 +13,8 @@ title: <Project Name>
 
 ## Worker Tracking
 
-| Agent | Instance | Notes |
-|-------|----------|-------|
+| Agent | Notes |
+|-------|-------|
 
 ## Version Control
 
