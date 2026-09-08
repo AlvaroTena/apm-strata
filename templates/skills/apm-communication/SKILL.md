@@ -55,7 +55,11 @@ When writing to APM artifacts (Spec, Plan, Tracker, Task Logs, bus files), follo
 
 ## 4. Message Bus Protocol
 
-Bus directories and files are initialized during the Planning Phase. Bus files are either empty (no message present) or contain a message awaiting delivery. Before writing to an outgoing bus file, an agent clears its incoming bus file. Always read a bus file before writing to it - this ensures the platform's file tools recognize the file and avoids write failures on empty or cleared files.
+Bus directories and files are initialized during the Planning Phase.
+
+**Message files are transient.** `task.md` and `report.md` are either empty, meaning no message is present, or hold one message awaiting delivery. Before writing to an outgoing message file, an agent clears its incoming one.
+
+**`handoff.md` is not a message file.** It holds a Worker's domain notes and persists for the life of the domain: it is read at the start of every session and updated at the end, and it is never cleared on reading. The one transient thing it can carry is a delimited continuation block, written when a session runs out of context part-way through a Task and deleted by the session that relieves it. Always read a bus file before writing to it - this ensures the platform's file tools recognize the file and avoids write failures on empty or cleared files.
 
 ### 4.1 Bus Identity Standards
 

@@ -26,7 +26,11 @@ Extract the information needed for the next review decision.
 - `important_findings: true` - Worker observed something potentially beyond Task scope. Assess whether it affects planning documents or other Tasks. When findings indicate that validation criteria from the Task Prompt were not fully exercised, this warrants investigation before marking Done. Important findings may also include User corrections noted as potential Rules entries - assess whether they warrant a Rules addition per §2.3 Planning Document Modification Standards.
 - `compatibility_issues: true` - Worker observed conflicts with existing systems. Assess whether it indicates Plan, Spec, or Rules issues.
 
-**Content review:** Beyond flags and status, review the log body sections (Summary, Details, Output, Validation, Issues) to understand what happened and inform the review outcome. When findings contradict content in the Spec, Plan, or Rules - factual inaccuracies, incorrect assumptions, outdated descriptions - treat the affected document as needing correction per §3.4 Planning Document Modification regardless of whether the Worker handled the discrepancy.
+**Completeness first.** A log is reviewable only once it says everything the format requires it to say. `## Claims` is mandatory: a log without it is incomplete, whatever its status field claims, and the Task does not pass review on it. Treat the omission as unfinished work rather than as an absence of claims - a Task with nothing falsifiable to stand behind writes `none`, and that is a different statement from silence. Send it back for the section before assessing anything else.
+
+`## Rule Deviations` is different: it appears only when a rule was departed from, so its absence says nothing. When it is present, read it - each row is a deviation someone chose, and the rejected alternative is the part worth checking.
+
+**Content review:** Beyond flags and status, review the log body sections (Summary, Details, Output, Validation, Claims, Issues) to understand what happened and inform the review outcome. When findings contradict content in the Spec, Plan, or Rules - factual inaccuracies, incorrect assumptions, outdated descriptions - treat the affected document as needing correction per §3.4 Planning Document Modification regardless of whether the Worker handled the discrepancy.
 
 ### 2.2 Review Outcome Standards
 
@@ -36,11 +40,14 @@ After reviewing a Task Log, determine the review outcome.
 
 **Investigation scope:** Investigate directly for contained checks; use a subagent for context-intensive issues. When scope is unclear, prefer subagent to preserve Manager context. When a subagent returns findings, verify critical claims by reading the key files it references before acting on them. {MANAGER_SUBAGENT_GUIDANCE}
 
-**Post-investigation outcome:**
-- If no issues are found (false positives, nothing actionable), continue to the next Task(s).
-- If the Worker needs to retry with refined instructions, create a follow-up Task Prompt per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction. If the Worker also left changes uncommitted, note this in the follow-up instructions.
-- If planning documents need modification, proceed to §3.4 Planning Document Modification.
-- If investigation reveals deficiencies in previously-Done work, create a new Task through Plan modification per §2.3 Planning Document Modification Standards. The original Task remains Done; reference it from the new Task, include the discovery context, and specify what needs correction.
+**The four outcomes.** Every review ends in exactly one of these, and there is no fifth:
+
+- *accept* - nothing actionable was found. The Task stands and the next Tasks proceed.
+- *follow-up* - the same Task goes back with refined instructions, to its own session per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction. If the Worker also left changes uncommitted, say so in the follow-up.
+- *replan* - the work is in scope but the planning documents are wrong about it, so they change per §3.4 Planning Document Modification. Deficiencies discovered in previously-Done work land here too: the original Task stays Done, and a new Task is created through Plan modification per §2.3 Planning Document Modification Standards, referencing the original, carrying the discovery context, and stating what needs correcting.
+- *defer* - the work is real but outside what the Spec set out to build. It is recorded where a backlog can outlive the session, per §3.6 Deferral, and nothing about the current Task changes.
+
+Choosing between *replan* and *defer* is a question about the Spec, not about effort: work the Spec's objective covers is replanned, work it does not is deferred. When a finding looks like both, it is usually two findings.
 
 Small contained actions (follow-ups for isolated issues, minor planning document corrections) can be executed immediately during the review cycle - present findings to the User for awareness after acting. When changes are significant enough to affect project direction or scope, pause for User approval per §2.3 Planning Document Modification Standards.
 
@@ -131,8 +138,8 @@ Perform the following actions:
 1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
 2. Read the report from the Report Bus (`.apm/bus/<agent-slug>/report.md`).
 3. Stop the reporting session by its short id per §2.4 Session Coordination Standards.
-4. Check for Handoff indication - look for a statement that the Worker is a new instance and a list of current-Stage Task Logs read. When previous Stages exist, the report also notes that previous-Stage logs were not loaded. If detected, verify the Handoff Log exists. Update Worker tracking in the Tracker: increment the instance number for this Worker. Compare the loaded Task Logs against all Tasks previously completed by this Worker and record cross-agent overrides in the Tracker for any completed Tasks whose logs were not loaded. From this point forward, previous-Stage same-agent dependencies for this Worker are treated as cross-agent.
-5. Check for auto-compaction indication - a Worker that recovered from auto-compaction notes it in the Task Report. If detected, update Worker tracking Notes in the Tracker (e.g., "auto-compacted, recovered"). No dependency reclassification - the Worker continues as the same instance. Provide slightly more comprehensive dependency context in future Task Prompts for this Worker.
+4. Check whether the report says the Task is unfinished with a continuation pending - a session that ran out of context part-way through. If so, verify the Handoff Log exists and note it in Worker tracking. The Task is not Done: launch a replacement session for it rather than reviewing it as complete. No dependency context changes, because every Task already receives full context for every dependency per `{GUIDE_PATH:task-assignment}` §2.1 Dependency Context Standards.
+5. Check for auto-compaction indication - a Worker that recovered from auto-compaction notes it in the Task Report. If detected, update Worker tracking Notes in the Tracker (e.g., "auto-compacted, recovered") and weigh the log's account a little more carefully, since part of it is reconstructed rather than first-hand.
 6. Update dispatch tracking: mark this Worker as available, note completed Task(s) for readiness assessment.
 7. Merge completed branch per §2.5 Merge Standards if dependent Tasks need it.
 
@@ -142,8 +149,9 @@ Execute after report processing. Present your assessment of the Task Log visibly
 
 Perform the following actions:
 1. Read the Task Log at the path referenced in the Task Report.
-2. Interpret content per §2.1 Task Log Review Standards: status, flags, body sections. Assess consistency between status/flags and body content.
-3. Continue to the review outcome.
+2. Check that the log carries the sections the format requires per §2.1 Task Log Review Standards. A log with no `## Claims` section is incomplete: return it for that section before reviewing anything else, and do not mark the Task Done on it.
+3. Interpret content per §2.1 Task Log Review Standards: status, flags, body sections. Assess consistency between status/flags and body content, and read `## Rule Deviations` when present.
+4. Continue to the review outcome.
 
 ### 3.3 Review Outcome
 
@@ -151,10 +159,11 @@ Execute after Task Log review.
 
 Perform the following actions:
 1. Review findings from the Task Log per §2.2 Review Outcome Standards. Assess deliverables against the Task's objectives and validation criteria before determining the outcome. If version control is active and the Task was successful but changes remain uncommitted on the Task branch, commit on behalf following the conventions from Rules - no follow-up needed. If everything looks good, skip to step 3. If something needs attention, continue to step 2.
-2. Investigate and determine outcome per §2.2 Review Outcome Standards:
-   - If no issues are found, continue to step 3.
-   - If the Worker needs a follow-up, create a follow-up Task Prompt per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction and continue to step 3.
-   - If planning documents need modification, proceed to §3.4 Planning Document Modification (returns to step 3 after completion).
+2. Investigate and settle on one of the four outcomes per §2.2 Review Outcome Standards:
+   - *accept* - continue to step 3.
+   - *follow-up* - create a follow-up Task Prompt per `{GUIDE_PATH:task-assignment}` §3.4 Follow-Up Task Prompt Construction and continue to step 3.
+   - *replan* - proceed to §3.4 Planning Document Modification, which returns to step 3.
+   - *defer* - proceed to §3.6 Deferral, which returns to step 3.
 3. Update the Tracker per §4.1 Task Tracking Format: mark completed Tasks as Done, reassess Waiting Tasks for readiness, update branch and session state. Execute pending merges per §2.5 Merge Standards before reassessing readiness, and release the sessions that earlier merges already freed. Assess whether the review yielded note-worthy context and add to working notes - both ephemeral coordination items and durable observations for later distillation. Remove stale working notes. Batch all changes from this review-dispatch cycle into a single Tracker edit.
 4. Brief the User on this Task per §2.4 Session Coordination Standards, then assess next action:
    - If all Stage Tasks are Done and merged, collapse Stage per §4.1 Task Tracking Format and proceed to §3.5 Stage Summary Creation.
@@ -184,6 +193,16 @@ Perform the following actions:
 3. Distill working notes per §2.7 Note-Taking Standards: observations with lasting impact on future work become Memory notes in the Index, Stage-specific observations become Stage summary prose. Keep working notes that will be needed in the next Stage. When this review immediately triggers Stage summary (last Task in Stage), observations from this review can be written directly to their destinations rather than first passing through working notes.
 4. Synthesize Stage-level observations and append a Stage summary to the Index per §4.3 Index Format. The Index structure (Memory notes above Stage summaries) enables steps 3 and 4 as a single contiguous edit.
 
+### 3.6 Deferral
+
+Execute when the review outcome is *defer*. One step, not two: the item is created and the row is written in the same step, because a deferral that is only announced is a deferral that is lost. Reporting is not the same as someone reading.
+
+Perform the following actions:
+1. Read the `## Tracker` block in `{RULES_FILE}`. If no tracker is declared, tell the User that this project has nowhere durable to put deferred work, record the finding in working notes so it is not lost outright, and return to §3.3 Review Outcome step 3. Do not invent a destination.
+2. Create the item with the `create` command the block declares. The body carries four things: *Origin* - the project, session, and Task it came from; *Evidence* - the path of the finding or of the Task Log that produced it; *Reason* - why this was deferred rather than done; *State* - open.
+3. Write the row into the Tracker's `## Deferred` table per §4.6 Deferred Table Format, in the same edit as the rest of this cycle's Tracker changes. Name in the blocked-Tasks column every Task that must not be dispatched until this item closes; leave it empty when nothing is blocked.
+4. Say in the brief what was deferred, where it now lives, and which Tasks it blocks. Return to §3.3 Review Outcome step 3.
+
 ---
 
 ## 4. Structural Specifications
@@ -209,7 +228,7 @@ The Task Tracking section within the Tracker tracks Task statuses, agent assignm
 | 2.5 | Ready | frontend-agent | | |
 ```
 
-**Session column:** both identifiers for the Task's session, short id first, separated by ` / `. They are not interchangeable - the short id stops and releases the session, and only the full id resumes it. Write them at dispatch, before anything can go wrong: a session whose full id was never recorded cannot be resumed for a correction, and an incoming Manager has no way to recover it. Empty means no live session for that Task.
+**Session column:** both identifiers for the Task's session, short id first, separated by ` / `. They address different commands and are not interchangeable. The short id is what `attach`, `logs`, `stop` and `rm` accept, so it covers opening a session, reading its output, stopping it and releasing it. The full id is the only one that resumes a session: passing the short id to a resume starts a copy that has lost the worktree, and the copy looks healthy. Write them at dispatch, before anything can go wrong: a session whose full id was never recorded cannot be resumed for a correction, and an incoming Manager has no way to recover it. Empty means no live session for that Task.
 
 **Task statuses:** `Ready`, `Active`, `Done`, `Waiting: <deps>`.
 
@@ -242,22 +261,17 @@ completed_at: <datetime>  # set by Manager at project completion - absence means
 
 **Tracker sections:**
 - *`## Task Tracking`:* Per-Stage Task state per §4.1 Task Tracking Format.
-- *`## Worker Tracking`:* Records Worker states, instance numbers, and coordination notes. Update Worker tracking when Workers are first dispatched to, when Handoffs are detected, and when auto-compaction recovery is reported. Cross-agent overrides are recorded below the Worker table when Worker Handoffs reclassify dependencies, listing the specific Tasks affected and referencing the Handoff that triggered the reclassification.
-- *`## Version Control`:* Per-repository base branch, branch convention, and commit convention per `{GUIDE_PATH:task-assignment}` §4.4 Tracker VC Entry Format. Branch state is tracked per-Task in the Task table's Branch column.
-- *`## Working Notes`:* Ephemeral coordination context per §2.7 Note-Taking Standards. Contents are inserted and removed as context evolves.
+- *`## Worker Tracking`:* Records Worker states and coordination notes. Update it when a Worker is first dispatched to, when a session reports a pending continuation, and when auto-compaction recovery is reported.
+- *`## Version Control`:* Per-repository base branch, branch convention, and commit convention per `{GUIDE_PATH:task-assignment}` §4.4 Tracker VC Entry Format. Branch and session state are tracked per-Task in the Task table.
+- *`## Deferred`:* Work found and deliberately not done, per §4.6 Deferred Table Format.
+- *`## Working Notes`:* Ephemeral coordination context per §2.7 Note-Taking Standards. Contents are inserted and removed as context evolves. This is also where your own rule deviations go: when you do something a rule in the APM_RULES block forbids, write the same three columns a Worker writes in its Task Log - what was violated, why it was necessary, and which simpler alternative was rejected and why - before doing it. The Worker's table is in its log because that is what the review reads; yours is here because that is what an incoming Manager reads.
 
 **Worker Tracking Table:**
 ```markdown
 | Agent | Instance | Notes |
 |-------|----------|-------|
-| frontend-agent | 2 | Handoff after Stage 1 |
+| frontend-agent | 2 | Task 2.4 relieved mid-Task; replacement session finished it |
 | backend-agent | 1 | |
-```
-
-**Cross-Agent Overrides** (below Worker Tracking table, when applicable):
-```markdown
-**Cross-Agent Overrides:**
-- frontend-agent: Tasks 1.1, 1.3 (pre-Handoff) - treat as cross-agent
 ```
 
 ### 4.3 Index Format
@@ -304,13 +318,39 @@ modified: Task 2.3 scope clarified based on task-02-02.log.md findings. Modified
 
 **Dependency Graph:** When Task dependencies change, regenerate the relevant graph section. Same-agent dependencies use `-->`, cross-agent use `-.->`. Update node styles if agents change.
 
+### 4.6 Deferred Table Format
+
+Work the review found and deliberately did not do. It lives here as well as in the project's tracker because the dispatch gate reads this table, and a gate cannot query someone's issue tracker.
+
+**Location:** `## Deferred` section of `.apm/tracker.md`.
+
+**Format:**
+```markdown
+## Deferred
+
+| Item | Source Task | Blocked Tasks | Status |
+|------|-------------|---------------|--------|
+| Rewrite the cache layer | 2.1 | 2.3, 2.4 | open |
+| Drop the legacy exporter | 1.4 | | done |
+```
+
+**The gate reads this table by column position, not by header text.** It takes the item from column 1, the blocked Tasks from column 3, and the status from column 4, so the table carries four columns in that order: item, source Task, blocked Tasks, status. Column two is not read, and the header row may be renamed or translated freely. Reordering the columns silently breaks the gate.
+
+**The section heading is not free.** The gate finds this table by matching the heading `## Deferred` exactly. A renamed or translated heading is not an error - the gate finds no table, blocks nothing, and says nothing, which is the failure that looks most like success.
+
+**Status vocabulary is a contract.** The gate treats an item as closed when the status reads `done`, `closed`, `resolved`, `complete`, `completed`, `dropped`, `[x]`, or their Spanish equivalents. **Anything else blocks, including an empty cell.** That direction is deliberate: a gate that guessed which unfamiliar words meant "open" would eventually wave one through, and a gate that blocks on a word it does not know is merely annoying. Write a closed status using one of the recognised values, not a synonym of your own.
+
+**Blocked Tasks** names every Task that must not be dispatched while the item is open, as `N.M` identifiers. Leave the cell empty when the item blocks nothing - the gate only blocks a Task the cell names.
+
 ---
 
 ## 5. Common Mistakes
 
 - *Status inconsistency:* When a Worker claims Success but the log body shows incomplete validation, unresolved issues, or missing deliverables, treat the content as authoritative over the status field and investigate before accepting.
 - *Accepting insufficient reports:* Marking Tasks as Done when validation criteria were not fully exercised or deliverables are partial. Push back with a follow-up Task Prompt before accepting.
-- *Skipping Handoff detection:* Failing to track Worker Handoff leads to incorrect dependency context treatment.
+- *Reviewing a log that is not complete:* A log with no `## Claims` section is unfinished, not a Task with nothing to claim. Marking it Done accepts a Task whose evidence was never stated.
+- *Deferring by announcement:* Naming something as deferred in the brief and leaving the tracker item or the table row for later. Neither exists unless it was written in the same step, and the row is what the dispatch gate reads.
+- *Inventing a closed status:* The gate recognises a fixed set of closed values and blocks on everything else. "Won't fix" and an empty cell both keep the blocked Tasks blocked.
 - *Unacknowledged recovery:* When a Worker report indicates auto-compaction occurred, factor this into the assessment - reconstructed context may have affected report completeness.
 - *Single-document tunnel vision:* Updating the Spec without checking whether the Plan references the same content, or modifying the Plan without assessing whether the Spec's design assumptions still hold. Changes to one planning document often cascade to the other.
 - *Symptom treatment:* Modifying one document to work around an issue that should be addressed in another. When an issue surfaces in execution, trace it to the document where the root cause lives rather than patching around it elsewhere.

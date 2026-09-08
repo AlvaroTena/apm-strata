@@ -59,7 +59,7 @@ Perform the following actions:
    - Set `status` per §2.2 Outcome Standards.
    - Set `important_findings` and `compatibility_issues` per §2.1 Flag Assessment Standards.
    - Set `stage`, `task`, `title`, and `agent` from the Task Prompt.
-4. Complete markdown body sections per §4.1 Task Log Format. Always include: Summary, Details, Output, Validation, Issues. Include conditional sections (Compatibility Concerns, Important Findings) only when their corresponding flag is `true`.
+4. Complete markdown body sections per §4.1 Task Log Format. Always include: Summary, Details, Output, Validation, Claims, Issues. Include Rule Deviations only when this Task departed from a rule, and the flag-driven sections (Compatibility Concerns, Important Findings) only when their corresponding flag is `true`.
 5. Write the Task Log to `log_path`.
 
 ### 3.2 Task Report Delivery
@@ -125,8 +125,19 @@ compatibility_issues: true | false
 ## Validation
 [Description of validation performed and result]
 
+## Claims
+- claim: <falsifiable statement this Task stands behind>
+  evidence: <path:line, commit, test, or output that proves it>
+  supersedes: <id of an earlier claim, or none>
+
 ## Issues
 [Specific blockers or errors encountered, or "None"]
+
+## Rule Deviations
+[Only include if a rule was deviated from]
+
+| Violation | Why it is necessary | Simpler alternative and why it was rejected |
+|-----------|---------------------|---------------------------------------------|
 
 ## Compatibility Concerns
 [Only include if compatibility_issues: true]
@@ -136,6 +147,16 @@ compatibility_issues: true | false
 [Only include if important_findings: true]
 [Project-relevant discoveries that Manager must know]
 ```
+
+**Claims.** Always present. A Task that stands behind nothing falsifiable writes `none` as the whole section body - the section is never omitted, because an absent section and an empty one say different things and only one of them is a statement. Each entry opens with `- claim:` and carries `evidence:` and `supersedes:` as indented lines beneath it. `evidence` is required; `supersedes` takes either the identifier of an earlier claim, which begins `clm-`, or `none`.
+
+Three constraints come from the parser that reads this section, and none is guessable from the format alone:
+
+- *One line per field.* A `claim`, `evidence`, or `supersedes` value that wraps onto a second line is an error, not a long value: the parser rejects any line it cannot recognise instead of folding it into the previous one. That is deliberate - folding would let an indentation slip swallow a piece of evidence silently, and a reported error is cheaper than a claim that quietly lost its proof. Keep each value on its line and put the long version in Details.
+- *A claim's identity is its text.* The identifier is derived from the claim's wording, so rewording a claim does not edit it: it retires the old claim and mints a new one. The new one carries no `supersedes` unless you write the earlier identifier in by hand, nothing warns you, and nothing afterwards can reconstruct the link. When you restate a claim an earlier Task made, chain it deliberately or the provenance ends at your Task.
+- *A missing section is an error, not an empty set.* The parser refuses a log with no `## Claims` section rather than treating it as claiming nothing, and the review does the same per `{GUIDE_PATH:task-review}` §2.1 Task Log Review Standards.
+
+**Rule Deviations.** Included only when this Task did something a rule in the APM_RULES block forbids. Doing so is allowed, and the table is what allows it: one row per violation, written before the deviation, naming what was violated, why it was necessary, and which simpler alternative was rejected and why. A deviation without a row is not a documented exception, it is an undocumented one. The Task Log goes into the review's prepared material, so these rows are read.
 
 ### 4.2 Task Report Format
 
@@ -202,6 +223,8 @@ A session that finds this block acts on it, then deletes the block and leaves th
 
 - *Forgetting conditional sections:* When a flag is `true`, include the corresponding section (Compatibility Concerns, Important Findings).
 - *Missing artifact references:* When deliverables are produced, list file paths in the Output section.
+- *Claims omitted rather than answered:* Leaving the section out reads as an oversight and stalls the review, while `none` reads as an answer. A Task with no falsifiable claim says so.
+- *Reworded claims that lose their chain:* Restating an earlier claim in fresh words creates a new claim with no link back. Write the `supersedes` id yourself - by the time anyone notices it is missing, what the claim replaced is no longer recoverable.
 - *Domain notes left untouched:* A session that learned something its successor needs and wrote nothing to `handoff.md` has discarded it. The session ends when the Task does, and nothing else carries forward.
 - *Domain notes used as a log:* Appending every session's narrative turns the file into something nobody reads. It holds what is still true and still useful, not a history.
 

@@ -8,8 +8,8 @@ title: <Project Name>
 
 **Stage 1:**
 
-| Task | Status | Agent | Branch |
-|------|--------|-------|--------|
+| Task | Status | Agent | Branch | Session |
+|------|--------|-------|--------|---------|
 
 ## Worker Tracking
 
@@ -20,6 +20,11 @@ title: <Project Name>
 
 | Repository | Base Branch | Branch Convention | Commit Convention |
 |-----------|-------------|-------------------|-------------------|
+
+## Deferred
+
+| Item | Source Task | Blocked Tasks | Status |
+|------|-------------|---------------|--------|
 
 ## Working Notes
 

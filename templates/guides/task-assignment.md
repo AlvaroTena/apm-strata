@@ -91,6 +91,43 @@ Bus directories and files are created by the Planner during the Planning Phase -
 
 When a non-APM agent has joined the session and you need to assign follow-up work to it, write a plain assignment to its Task Bus - not a full Task Prompt. Include what to do and what to produce, and instruct it to report back. Do not include log paths, logging instructions, or Handoff metadata - non-APM agents do not log to Memory or participate in Worker tracking.
 
+### 2.8 Spec Delta Standards
+
+A Task whose work changes something that already exists carries a delta section in its prompt, stating that change against the spec it touches. A Task building something new from nothing does not need one.
+
+**Format.** Literal - the headings are the contract, not decoration:
+
+````markdown
+## ADDED Requirements
+### Requirement: <name>
+The system SHALL <behaviour>
+#### Scenario: <name>
+- **WHEN** <condition>
+- **THEN** <expected outcome>
+
+## MODIFIED Requirements
+### Requirement: <exact name of the existing requirement>
+<the complete requirement block, with every one of its scenarios>
+
+## REMOVED Requirements
+### Requirement: <name>
+**Reason**: <why it is being removed>
+**Migration**: <what replaces it, or how callers move off it>
+````
+
+**Four rules:**
+
+- The text after `### Requirement:` is the matching key, and it is case-sensitive. A key that does not match an existing requirement exactly matches nothing at all.
+- `#### Scenario:` takes exactly four hashes.
+- Every requirement states `SHALL` or `MUST`.
+- **`MODIFIED` replaces the whole block.** Copy the requirement complete, with every scenario it already has. Omitting an existing scenario is an error, not an abbreviation - this rule is the only thing standing between a routine edit and quietly deleting a scenario nobody meant to touch.
+
+**Validation.** Validate the delta before writing the prompt, using the command the project declares under `## Deltas` in `{RULES_FILE}`. When no such block is declared, use `apm delta validate <path>`. Take the command from the declaration rather than writing it into the procedure: what the procedure requires is that the delta validate clean, and a project that swaps the tool then changes one line and nothing else. A delta that fails is fixed before dispatch - never dispatched with a note about it.
+
+A delta that passes matching but names a requirement that does not exist is the failure this guards against. It reports clean in some tools while the change lands on nothing, so treat an unexpected clean result on a `MODIFIED` block as a reason to confirm the key by eye against the spec.
+
+In a project using this fork, spec directories live under `.apm/openspec/`.
+
 ---
 
 ## 3. Task Assignment Procedure
@@ -125,21 +162,22 @@ Assemble the Task Prompt and deliver via the Message Bus.
 
 Perform the following actions:
 1. Construct YAML frontmatter per §4.1 Task Prompt Format.
-2. Construct prompt body: Task Reference, Context from Dependencies (if applicable), Objective, Detailed Instructions, Workspace, Expected Output, Validation Criteria, Instruction Accuracy, Task Iteration, Task Logging instructions, Reporting Instructions.
+2. Construct prompt body: Task Reference, Context from Dependencies (if applicable), Objective, Detailed Instructions, Spec Deltas (if the Task changes existing work), Workspace, Expected Output, Validation Criteria, Instruction Accuracy, Task Iteration, Task Logging instructions, Reporting Instructions.
 3. Name the Task branch per the convention in the Tracker and state it, with the base branch, in the Workspace section. The Worker cuts it inside its worktree; you do not create it here.
-4. Clear the incoming Report Bus per §2.6 Delivery Standards.
-5. Read the Worker's Task Bus, then write the Task Prompt to it: `.apm/bus/<agent-slug>/task.md`.
-6. Launch the session from the Task's repository directory:
+4. If the Task changes anything that already exists, construct its delta section and validate it per §2.8 Spec Delta Standards. Fix what the validator reports before going further.
+5. Clear the incoming Report Bus per §2.6 Delivery Standards.
+6. Read the Worker's Task Bus, then write the Task Prompt to it: `.apm/bus/<agent-slug>/task.md`.
+7. Launch the session from the Task's repository directory:
 
    ```
    claude --bg --name <slug>-<stage>.<task> --worktree <slug>-<stage>.<task> "{SKILL_NAME:work} <slug>"
    ```
 
    The launch prompt is what starts the Worker skill. A trigger message cannot: role skills accept only a person's invocation, and a launch prompt counts as one.
-7. Wait until the session appears in the agent listing and its worktree exists on disk.
-8. Create the `.apm` link inside the new worktree per §2.5 Version Control Standards.
-9. Read both session identifiers with `claude agents --json` and record them, with the branch name, in the Task row when updating the Tracker per §2.4 Dispatch Standards.
-10. Send the fixed trigger text to the session by name per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages.
+8. Wait until the session appears in the agent listing and its worktree exists on disk.
+9. Create the `.apm` link inside the new worktree per §2.5 Version Control Standards.
+10. Read both session identifiers with `claude agents --json` and record them, with the branch name, in the Task row when updating the Tracker per §2.4 Dispatch Standards.
+11. Send the fixed trigger text to the session by name per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages.
 
 ### 3.4 Follow-Up Task Prompt Construction
 
@@ -187,6 +225,7 @@ has_dependencies: true
 - *Context from Dependencies.* Included when `has_dependencies: true`. One form for every dependency per §2.1 Dependency Context Standards: an intro naming what this Task depends on - `**Integration Steps:**` numbered file reading instructions - `**Producer Output Summary:**` key features, files, interfaces, constraints - `**Upstream Context:**` for relevant ancestors. Say which Worker produced the work when it helps the reader locate it, and write the same depth either way.
 - *Objective:* Single-sentence Task goal, optionally enhanced with coordination-level context.
 - *Detailed Instructions:* Plan steps transformed into actionable instructions with integrated Spec content and guidance.
+- *Spec Deltas.* Included when the Task changes something that already exists, per §2.8 Spec Delta Standards. Omitted entirely for new work - an empty delta section is worse than none, because it reads as a change that was never stated.
 - *Workspace:* The worktree path, the Task branch to cut, and the base branch to cut it from. The Worker works and commits in the worktree and notes it in the Task Log. `.apm/` paths resolve through the link in the worktree to the one shared copy. Workers do not merge.
 - *Expected Output:* Deliverables from Plan Output field.
 - *Validation Criteria:* From Plan Validation field.

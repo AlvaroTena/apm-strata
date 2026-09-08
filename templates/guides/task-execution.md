@@ -28,6 +28,8 @@ When a criterion requires User involvement - judgment the Worker cannot self-ass
 
 When criteria require resources not currently available, request them from the User rather than substituting a lower verification level.
 
+**Spec deltas.** When your Task Prompt carries a delta section, validate it before you report, using the command the project declares under `## Deltas` in `{RULES_FILE}`, or `apm delta validate <path>` when no such block exists. Take the command from the declaration rather than assuming one. The prompt's delta was validated when it was written, but your work may have moved a requirement's wording or added a scenario, and a delta that no longer matches the spec it describes reports clean while changing nothing. Read the rules the validator enforces in `{GUIDE_PATH:task-assignment}` §2.8 Spec Delta Standards; the one that bites is that a `MODIFIED` block replaces the requirement whole, so an omitted scenario deletes it.
+
 ### 2.3 Iteration Standards
 
 When validation fails, you enter a correction loop - investigate, correct, re-validate.
@@ -112,9 +114,10 @@ Perform the following actions:
 1. Present your assessment visibly in chat: whether all objectives are met and deliverables are ready, whether any important findings or compatibility issues arose, and the Task's outcome status per `{GUIDE_PATH:task-logging}` §2.2 Outcome Standards.
 2. Commit work to the assigned branch per §2.5 Version Control Standards.
 3. Create Task Log per `{GUIDE_PATH:task-logging}` §3.1 Task Log Procedure at `log_path`.
-4. Update `handoff.md` per §2.6 Domain Continuity Standards.
-5. Write Task Report and send the trigger back per `{GUIDE_PATH:task-logging}` §3.2 Task Report Delivery. If auto-compaction occurred and recovery was performed via `{SKILL_NAME:recover}`, note it in the Task Report.
-6. Stop. The coordinator reviews the report and either sends a correction to this same session or releases it after merging. Do not start anything else, and do not act on the absence of a reply.
+4. If your Task Prompt carried a delta section, validate it per §2.2 Validation Standards. A failing delta is a failing Task: correct it or report the failure, never report Success over it.
+5. Update `handoff.md` per §2.6 Domain Continuity Standards.
+6. Write Task Report and send the trigger back per `{GUIDE_PATH:task-logging}` §3.2 Task Report Delivery. If auto-compaction occurred and recovery was performed via `{SKILL_NAME:recover}`, note it in the Task Report.
+7. Stop. The coordinator reviews the report and either sends a correction to this same session or releases it after merging. Do not start anything else, and do not act on the absence of a reply.
 
 ---
 
