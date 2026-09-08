@@ -33,7 +33,13 @@ export const CLIErrorCode = {
   DOWNLOAD_FAILED: 'DOWNLOAD_FAILED',
 
   // Archive errors
-  ARCHIVE_FAILED: 'ARCHIVE_FAILED'
+  ARCHIVE_FAILED: 'ARCHIVE_FAILED',
+
+  // Knowledge layer errors
+  UNKNOWN_CONSUMER: 'UNKNOWN_CONSUMER',
+  UNSUPPORTED_PLATFORM: 'UNSUPPORTED_PLATFORM',
+  PREREQUISITE_MISSING: 'PREREQUISITE_MISSING',
+  KNOWLEDGE_SETUP_FAILED: 'KNOWLEDGE_SETUP_FAILED'
 };
 
 /**
@@ -194,6 +200,68 @@ export class CLIError extends Error {
       `Failed to archive session: ${reason}`,
       CLIErrorCode.ARCHIVE_FAILED,
       { reason }
+    );
+  }
+
+  /**
+   * Creates an unknown knowledge consumer error.
+   *
+   * @param {string} consumer - Consumer identifier that was requested.
+   * @param {string[]} available - Supported consumer identifiers.
+   * @returns {CLIError} Formatted error instance.
+   */
+  static unknownConsumer(consumer, available) {
+    return new CLIError(
+      `Unknown knowledge consumer '${consumer}'. Available: ${available.join(', ')}`,
+      CLIErrorCode.UNKNOWN_CONSUMER,
+      { consumer, available }
+    );
+  }
+
+  /**
+   * Creates an unsupported platform error.
+   *
+   * @param {string} platform - Platform reported by process.platform.
+   * @param {string} reason - Why the platform cannot be supported.
+   * @returns {CLIError} Formatted error instance.
+   */
+  static unsupportedPlatform(platform, reason) {
+    return new CLIError(
+      `Unsupported platform ${platform}: ${reason}`,
+      CLIErrorCode.UNSUPPORTED_PLATFORM,
+      { platform, reason }
+    );
+  }
+
+  /**
+   * Creates a missing prerequisite error.
+   *
+   * @param {string} tool - Tool that is missing or too old.
+   * @param {string} requirement - Human-readable requirement.
+   * @param {string} [found] - What was found instead, when known.
+   * @returns {CLIError} Formatted error instance.
+   */
+  static prerequisiteMissing(tool, requirement, found) {
+    const suffix = found ? ` Found ${found}.` : '';
+    return new CLIError(
+      `${tool} ${requirement} is required.${suffix}`,
+      CLIErrorCode.PREREQUISITE_MISSING,
+      { tool, requirement, found }
+    );
+  }
+
+  /**
+   * Creates a knowledge layer setup error.
+   *
+   * @param {string} step - Step that failed.
+   * @param {string} reason - Failure reason.
+   * @returns {CLIError} Formatted error instance.
+   */
+  static knowledgeSetupFailed(step, reason) {
+    return new CLIError(
+      `Knowledge layer setup failed during ${step}: ${reason}`,
+      CLIErrorCode.KNOWLEDGE_SETUP_FAILED,
+      { step, reason }
     );
   }
 
