@@ -96,7 +96,7 @@ Runs after exploration and before the question rounds. Do not ask the User wheth
 
 Perform the following actions:
 1. Read the `## Tracker` block per `{GUIDE_PATH:work-breakdown}` §4.5 Project Declaration Blocks and run the command its `query` key declares. When no `## Tracker` block is declared, state that the project declares no durable tracker and continue to the next action.
-2. Read the deferred work section of the most recent archived session summary under `.apm/archives/`. When no archive exists, state that and continue.
+2. Read the section headed exactly `Deferred work` in the most recent archived session summary under `.apm/archives/`. The heading is a literal, not a description: the summary writes that string and this action matches it, so a renamed heading is found by nothing and reported by nothing. When no archive exists, or the summary carries no such section, state that and continue.
 3. Read `substrate-audit.md` from that same archive when the file is present. When it is absent, state that and continue.
 4. Present everything collected in the previous actions as a table per §4.1 Deferred Work Table Format. Every item carries one of the three verdicts - none may be presented without one.
 

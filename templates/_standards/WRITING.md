@@ -1,6 +1,8 @@
 # APM Writing Standards
 
-This document defines how to write content within APM skills and commands. It establishes tone, instruction patterns, output guidance, and terminology usage rules. This is a development-time specification: agents do not read this file during runtime. Every rule here takes effect only through the templates that implement it - template authors embed these rules contextually in commands, guides, and skills.
+This document defines how to write content within APM guides, skills, agents and hooks. It establishes tone, instruction patterns, output guidance, and terminology usage rules. This is a development-time specification: agents do not read this file during runtime. Every rule here takes effect only through the templates that implement it - template authors embed these rules contextually in the files they write.
+
+There is no command category. The nine numbered commands became role skills, `templates/commands/` is gone, and a rule that still spoke of commands would describe a surface that no longer exists. The runtime surfaces are guides, skills, agents and hooks; paths in this document are written literally, because the build skips `_standards/` and a placeholder here would reach its reader unsubstituted.
 
 All terms used in this document are defined in `TERMINOLOGY.md`. All structural patterns follow `STRUCTURE.md`.
 
@@ -20,7 +22,7 @@ All terms used in this document are defined in `TERMINOLOGY.md`. All structural 
 
 ### 1.3 Token Efficiency
 
-Skills, guides, and commands are written for token efficiency while preserving comprehensiveness:
+Every runtime file is written for token efficiency while preserving comprehensiveness:
 
 - Prose is preferred over tables when conveying the same information.
 - Excessive spacing and structural padding are avoided.
@@ -33,15 +35,15 @@ Token efficiency does not mean sacrificing clarity or completeness. Remove waste
 
 ### 1.4 Audience Awareness
 
-Skills, guides, and commands serve two audiences: **Human Users** (readable prose, logical flow, clear structure, scannable sections) and **AI Agents** (predictable patterns, explicit instructions, unambiguous terminology). Content serves both - structured formats where appropriate, prose for explanations, consistent section patterns for reliable parsing.
+Runtime files serve two audiences: **Human Users** (readable prose, logical flow, clear structure, scannable sections) and **AI Agents** (predictable patterns, explicit instructions, unambiguous terminology). Content serves both - structured formats where appropriate, prose for explanations, consistent section patterns for reliable parsing.
 
 ### 1.5 Simplicity Standards
 
-Skills and commands are written for capable models that reason well from clear, concise instructions:
+Runtime files are written for capable models that reason well from clear, concise instructions:
 
 **Trust model reasoning.** State rules and criteria clearly. Guide assessment rather than dictating decisions. Prefer reasoning frameworks over exhaustive if/then trees or lookup tables.
 
-**Guardrail restraint.** One clear statement of a rule is sufficient. Do not restate the same constraint in multiple forms or pad instructions with cautionary variations. Include examples only when the pattern is genuinely non-obvious. Skills, guides, and commands should not exceed ~500 lines - reduce descriptive content before reducing structural specifications or procedural steps.
+**Guardrail restraint.** One clear statement of a rule is sufficient. Do not restate the same constraint in multiple forms or pad instructions with cautionary variations. Include examples only when the pattern is genuinely non-obvious. A runtime file should not exceed ~500 lines - reduce descriptive content before reducing structural specifications or procedural steps.
 
 **Reasoning over classification.** Describe concepts through their implications rather than defining named categories for agents to classify into. Taxonomies are appropriate only for output schema fields where agents select from enumerated values.
 
@@ -63,7 +65,7 @@ Active voice ("The Manager creates..." not "is created"). No emotional anthropom
 
 **Standards files** (`_standards/`): Third person throughout. Standards describe how agents behave and how the workflow operates - they do not instruct a runtime reader. "The Manager assesses cascade implications" not "Assess cascade implications." "Workers iterate on failure" not "Iterate on failure." Instructional language directed at template maintainers is acceptable ("Prefer X over Y", "Use X format") because standards address maintainers, not runtime agents.
 
-**Runtime files** (commands, guides, skills): Second person and imperative mood when addressing the reading agent. "Perform the following actions" not "The Worker performs the following actions." "You operate with narrow context" not "Workers operate with narrow context." Third person for OTHER agents - a guide read by the Manager uses third person for Workers ("Workers do not reference the Plan") and second person for the Manager ("Extract relevant Spec content"). Skills read by multiple agent roles use third person when distinguishing specific roles ("The Manager coordinates merges; Workers commit to their branch") since no single reader is the exclusive audience.
+**Runtime files** (guides, skills, agents, hook documentation): Second person and imperative mood when addressing the reading agent. "Perform the following actions" not "The Worker performs the following actions." "You operate with narrow context" not "Workers operate with narrow context." Third person for OTHER agents - a guide read by the Manager uses third person for Workers ("Workers do not reference the Plan") and second person for the Manager ("Extract relevant Spec content"). Skills read by multiple agent roles use third person when distinguishing specific roles ("The Manager coordinates merges; Workers commit to their branch") since no single reader is the exclusive audience.
 
 ### 2.3 Neutrality
 
@@ -128,7 +130,7 @@ Decision rules define criteria for choosing between outcomes. Each condition map
 
 ## 4. Output Guidance
 
-Agent communication standards - including agent-to-user communication, visible reasoning, and terminology boundaries - are defined in the communication skill and implemented through guide and command instructions. This section governs how template authors write those instructions.
+Agent communication standards - including agent-to-user communication, visible reasoning, and terminology boundaries - are defined in the communication skill and implemented through guide and skill instructions. This section governs how template authors write those instructions.
 
 **Reasoning frames.** Procedures guide visible reasoning in two ways. Some prescribe specific headers the agent presents visibly, organizing analysis into distinct sections - the agent follows that structure. Others describe aspects the agent must cover without prescribing how to present them - the agent covers all indicated aspects using whatever format suits the content (prose, lists, tables, or any combination). Each frame specifies a visible header for the agent's chat output. Label text describes analytical aspects, not framework vocabulary. Use italic labels per `STRUCTURE.md` §6.1 Heading Levels.
 

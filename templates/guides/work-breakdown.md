@@ -39,6 +39,8 @@ These principles apply across all decomposition levels. Adapt granularity to pro
 
 **Domains:** Identify logical work domains from Context Gathering. Split when domains involve different expertise or mental models. Combine when domains share tight context and dependencies. When balanced, prefer separation. Integrate User preferences.
 
+**One domain, one repository.** Each Task runs in a worktree, and a worktree belongs to exactly one repository, so a Worker's domain maps to a single repository. When a domain you would otherwise keep whole spans two repositories in a multi-repository workspace, split it into one Worker per repository. A domain that spans repositories has no worktree it can run in, and the split is not a preference - the alternative does not execute.
+
 **Stages:** Sequential milestone groupings - Stage N+1 begins after Stage N completes. Each Stage delivers coherent value. Split when work streams are unrelated or intermediate deliverables block subsequent work. Combine when separation is artificial. When balanced, prefer fewer Stages with clear milestones. When domains can work in parallel, structure that as parallel Tasks within a single Stage rather than parallel Stages.
 
 **Tasks:** Derive from Stage objectives. Each Task produces a meaningful deliverable, scoped to one Worker's domain, with specified validation criteria. Split when a Task spans domains or bundles unrelated deliverables. Combine when micro-tasks create overhead without value. Include subagent steps for investigation or research.
@@ -68,6 +70,8 @@ The Plan defines how work is organized - Stages, Tasks, Worker assignments, depe
 **Content placement:** Task-level content - objectives, deliverables, Worker assignments, validation criteria, dependencies, step-by-step guidance. Design decisions across Tasks belong in the Spec; universal execution patterns belong in Rules.
 
 **Task self-sufficiency:** Each Task must contain enough context for a Worker to execute from a Task Prompt alone per §2.1 Workflow Context.
+
+**Dependency classification serves the graph.** Classify each dependency as same-agent or cross-agent and bold the cross-agent ones, because the Dependency Graph renders the two with different edges and the Manager reads dispatch opportunities off that graph. It no longer decides how much dependency context a Task Prompt carries: every Task runs in a fresh session with no memory of earlier ones, so the Manager writes full context for every dependency, including dependencies on Tasks the same Worker produced. Do not write a Task expecting its Worker to remember anything from a previous Task.
 
 **Guidance and steps:** When Task guidance involves design decisions already captured in the Spec, reference the Spec section rather than restating the content. The Manager reads both documents and integrates Spec content into the Task Prompt during extraction - restating duplicates work and risks divergence. Guidance adds what the Spec does not cover (domain-specific implementation context, constraints, and patterns). Authoritative User documents follow the same principle - reference by path and section. Steps describe the Worker's sequential operations - the Manager transforms them into actionable instructions enriched with Spec content and guidance.
 
@@ -342,13 +346,15 @@ Declare only the blocks the project uses. An undeclared block is not a defect: t
 - validate: <command>
 ```
 
-**Tracker.** Three requirements and no others: the tracker is durable and lives outside session state, it is queried through a single command, and it is declared here. Session state is archived and removed when a session closes, so an item recorded only there dies with the session - which is why the long-horizon backlog does not live under `.apm/`. It does not live in the knowledge layer either: a backlog has to be able to close, and the knowledge layer never archives.
+**Tracker.** Three requirements and no others: the tracker outlives the session, it is queried through a single command, and it is declared here. Outliving the session is a property, not a location: the default backlog sits at `.apm/backlog.md` and survives because archiving is built to leave that one file in place while it snapshots and clears everything else around it. A project that wants durability against losing the machine excepts that single path from `.gitignore` and versions it. It does not live in the knowledge layer either: a backlog has to be able to close, and the knowledge layer never archives.
 
 `github-issues` is the only `type` with a defined item body in this version. Another type declares the same two commands and uses the same body. The body of a deferred item carries:
 - *Origin:* the project, session, and Task the item came from.
 - *Evidence:* path of the finding, or of the Task Log that produced it.
 - *Reason:* why the work was deferred instead of done.
-- *State:* whether the item is open, taken into a later objective, or closed.
+- *State:* one of the values below.
+
+**The state vocabulary is a closed set, and the closed end is the one that is closed.** A deferred item also gets a row in the Tracker's Deferred table, and the dispatch gate reads that row's status to decide whether the item still blocks the Tasks it names. The gate treats an item as closed when the status reads `done`, `closed`, `resolved`, `complete`, `completed`, `dropped`, `[x]`, or their Spanish equivalents (`cerrado`, `resuelto`, `hecho`, `completado`, `descartado`). **Everything else counts as open, including an empty cell and including a word that plainly means finished.** The asymmetry is deliberate: a gate that tried to recognise which unfamiliar words meant "open" would eventually wave one through, while a gate that blocks on a word it does not know is merely irritating. The cost lands on a project that invents its own vocabulary - a state written as `finished` blocks its Tasks forever, and the block says which item did it without ever saying that the word was the problem. Write closed states using the values above, and use the same words in the item body so the two never disagree.
 
 **Knowledge layer.** Printed by `apm knowledge init`, which prints the block without writing it. Declaring it is what connects the layer to the guides that read it, per `{GUIDE_PATH:context-gathering}` §3.3 Knowledge Layer Discovery.
 
@@ -362,7 +368,7 @@ Declare only the blocks the project uses. An undeclared block is not a defect: t
 - *Under-specification:* Design decisions left implicit - if it could reasonably go multiple ways, document the chosen direction.
 - *Spec absorbing decomposition:* The Spec capturing how work is decomposed (Worker assignments, Task structure, Stage sequencing) instead of what is being built. Workers, Stages, and Task structure are Plan concerns - the Spec stays at the design decision level.
 - *Validation as afterthought:* "Works correctly" is not a criterion. Each Task needs concrete measures - what to check, how to check it, and what the pass/fail boundary is. Vague criteria produce vague validation.
-- *Misclassified dependencies:* Cross-agent dependencies not bolded, same-agent dependencies incorrectly bolded, or wrong edge types in the Dependency Graph - classify at write time by checking whether producer and consumer share the same agent.
+- *Misclassified dependencies:* Cross-agent dependencies not bolded, same-agent dependencies incorrectly bolded, or wrong edge types in the Dependency Graph - classify at write time by checking whether producer and consumer share the same agent. The classification is graph accuracy, not a claim about what a Worker remembers per §2.4 Plan Standards.
 - *Skipped approval gate:* Each document has its own analyze-write-approve cycle. The User reviews and approves each document before the next begins. Producing multiple documents without pausing, or proceeding to the next document without User approval, breaks the cycle.
 - *Restating Spec content in Task guidance:* When Task guidance repeats design decisions already in the Spec, both you and the Manager maintain redundant content that can diverge. Reference the Spec section in Task guidance - the Manager reads both documents and integrates Spec content into Task Prompts during extraction.
 - *Rules that reference coordination-level documents:* Workers should not be aware of the Spec, Plan, Tracker, or Index. A rule that says "per the Spec" or "as defined in the Plan" references documents the Worker has never read. Embed the content directly.
