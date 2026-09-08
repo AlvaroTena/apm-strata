@@ -17,6 +17,7 @@ import { archiveCommand } from './commands/archive.js';
 import { addCommand } from './commands/add.js';
 import { removeCommand } from './commands/remove.js';
 import { statusCommand } from './commands/status.js';
+import { knowledgeInitCommand } from './commands/knowledge.js';
 import { CLI_VERSION, OFFICIAL_REPO_URL } from './core/constants.js';
 import { CLIError } from './core/errors.js';
 import logger from './ui/logger.js';
@@ -51,6 +52,7 @@ function displayHelp() {
   console.log(`  ${chalk.bold('add')}               Add assistant(s) to existing installation`);
   console.log(`  ${chalk.bold('remove')}            Remove assistant(s) from installation`);
   console.log(`  ${chalk.bold('status')}            Show installation status`);
+  console.log(`  ${chalk.bold('knowledge')}         Scaffold the project knowledge layer`);
   console.log('');
   console.log(chalk.cyan.bold('Shared Options:'));
   console.log(`  ${chalk.bold('-a, --assistant <id...>')}   Target assistant(s) ${chalk.dim('(init, custom, add, remove)')}`);
@@ -65,6 +67,11 @@ function displayHelp() {
   console.log(`  ${chalk.bold('--remove-repo <repos...>')}  Remove saved repository(ies)`);
   console.log(`  ${chalk.bold('--list')}                    List saved custom repositories`);
   console.log(`  ${chalk.bold('--clear')}                   Clear all saved custom repositories`);
+  console.log('');
+  console.log(chalk.cyan.bold('Knowledge:'));
+  console.log(`  ${chalk.bold('--consumer <id>')}           Knowledge consumer ${chalk.dim('(default: claude-obsidian)')}`);
+  console.log(`  ${chalk.bold('--vault <path>')}            Vault path ${chalk.dim('(default: ./wiki)')}`);
+  console.log(`  ${chalk.bold('--clone-dir <path>')}        Where to install the consumer product`);
   console.log('');
   console.log(chalk.cyan.bold('Archive:'));
   console.log(`  ${chalk.bold('-l, --list')}                List archived sessions`);
@@ -108,7 +115,7 @@ program
   });
 
 // Known command names for typo suggestions
-const KNOWN_COMMANDS = ['init', 'custom', 'update', 'archive', 'add', 'remove', 'status'];
+const KNOWN_COMMANDS = ['init', 'custom', 'update', 'archive', 'add', 'remove', 'status', 'knowledge'];
 
 // Default action (no command or unknown command)
 program.action(() => {
@@ -228,6 +235,24 @@ program
   .action(async () => {
     try {
       await statusCommand();
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+const knowledge = program
+  .command('knowledge')
+  .description('Scaffold the project knowledge layer');
+
+knowledge
+  .command('init')
+  .description('Install the knowledge consumer and initialize its vault')
+  .option('--consumer <id>', 'Knowledge consumer to install')
+  .option('--vault <path>', 'Vault path')
+  .option('--clone-dir <path>', 'Directory to install the consumer product into')
+  .action(async (options) => {
+    try {
+      await knowledgeInitCommand(options);
     } catch (err) {
       handleError(err);
     }
