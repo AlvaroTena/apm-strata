@@ -102,6 +102,13 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: npm run build:release
 
+      - name: Pack the CLI
+        # The CLI is installed from this tarball, not from a git URL: npm
+        # resolves a global git dependency to a symlink into its own cache
+        # directory, so such an install stops working when that cache is
+        # cleared. Attaching the tarball keeps the install reproducible.
+        run: npm pack --pack-destination dist
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -123,12 +130,13 @@ jobs:
 
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "Release $TAG exists. Updating assets."
-            gh release upload "$TAG" dist/*.zip dist/apm-release.json --clobber
+            gh release upload "$TAG" dist/*.zip dist/apm-release.json dist/*.tgz --clobber
           else
             echo "Creating release $TAG"
             gh release create "$TAG" \
               dist/*.zip \
               dist/apm-release.json \
+              dist/*.tgz \
               --title "APM Release $TAG" \
               --notes "$NOTES" \
               --target "$GITHUB_SHA" \

@@ -4,11 +4,11 @@ APM uses a decoupled versioning system with two independent release tracks: the 
 
 ## Versioning Tracks
 
-### 1. APM CLI (`agentic-pm`, installed from git)
+### 1. APM CLI (`apm-strata`, installed from git)
 
 The CLI source code lives in `src/`. Changes to this directory ship on the next tag. The CLI handles template management via `apm init`, `apm custom`, `apm update`, `apm archive`, `apm add`, `apm remove`, and `apm status`.
 
-The CLI is installed from git rather than from the NPM registry: `npm install -g AlvaroTena/apm-strata`. The package keeps upstream's name, `agentic-pm`, and is not renamed, so installing it replaces an upstream CLI of the same name.
+The CLI is installed from a tarball published with each release rather than from the NPM registry. The package is named `apm-strata`, not upstream's `agentic-pm`, so it installs alongside an upstream CLI instead of replacing it and an upstream release can never be pulled over it by `npm update`.
 
 ### 2. APM Template Releases (GitHub Releases)
 
@@ -26,7 +26,7 @@ The `build/` directory, CI/CD workflows, and configuration files are not version
 
 The CLI and template releases are decoupled but tied by **major version**. CLI v1.x will only fetch v1.x.x releases from the official repository, ensuring template compatibility. Minor and patch versions can differ between CLI and templates.
 
-## `agentic-pm` CLI Behavior
+## `apm-strata` CLI Behavior
 
 ### Official Repository (`apm init`)
 

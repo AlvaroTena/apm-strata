@@ -32,14 +32,22 @@ scaffolding.
 
 ## Install
 
-The CLI installs from git, not from the npm registry.
+The CLI ships as a tarball attached to each release, and installs from that URL.
 
 ```bash
-npm install -g AlvaroTena/apm-strata
+npm install -g https://github.com/AlvaroTena/apm-strata/releases/download/v1.1.0/apm-strata-1.1.0.tgz
 apm init
 ```
 
-If you already have the upstream CLI and would rather not replace it, you can pull the
+**Do not install it with `npm install -g AlvaroTena/apm-strata`.** npm resolves a global git
+dependency to a symlink into its own cache directory rather than installing the package, so the
+command appears to succeed and the CLI stops working the next time that cache is cleared.
+Reproduced against npm 11.6.0 in a clean prefix. The tarball route installs a real directory.
+
+The package is named `apm-strata`, so it neither replaces an upstream `agentic-pm` install nor
+can be replaced by one through `npm update`.
+
+If you already have the upstream CLI and would rather not add another, you can pull the
 templates with the command upstream already provides:
 
 ```bash
@@ -52,9 +60,6 @@ upstream package: it merges the hook declaration into `.claude/settings.json`, a
 the execute bit that extraction strips from the hook scripts. Without both, the dispatch gate
 is never armed - it does not fail, it simply never runs, and the installation looks complete.
 Use it to read the templates, not to run a session that relies on the gate.
-
-The npm package keeps upstream's name, `agentic-pm`, and is not renamed. The two CLIs are the
-same binary name from different sources, so installing one replaces the other.
 
 Installing declares two hooks in `.claude/settings.json` and writes the rest of the bundle
 into `.claude/`. `apm remove` withdraws the declarations again, leaving any hooks of your own

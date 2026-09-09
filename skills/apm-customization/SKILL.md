@@ -65,7 +65,7 @@ project's `.claude/settings.json` by the CLI, not by the bundle.
 **`build/`** - Turns templates into the bundle. `build-config.json` declares the target.
 Standard: `build/_standards/BUILD.md`.
 
-**`src/`** - The `agentic-pm` CLI. Standard: `src/_standards/CLI.md`.
+**`src/`** - The `apm-strata` CLI. Standard: `src/_standards/CLI.md`.
 
 **`test/`** - Vitest suites over the build, the CLI, the hooks and the template contracts.
 

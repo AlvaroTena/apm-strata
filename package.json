@@ -1,5 +1,5 @@
 {
-  "name": "agentic-pm",
+  "name": "apm-strata",
   "version": "1.1.0",
   "description": "Agentic Project Management CLI",
   "scripts": {
@@ -23,7 +23,7 @@
   "type": "module",
   "bin": {
     "apm": "src/index.js",
-    "agentic-pm": "src/index.js"
+    "apm-strata": "src/index.js"
   },
   "bugs": {
     "url": "https://github.com/AlvaroTena/apm-strata/issues"

@@ -1,6 +1,6 @@
 # Security Considerations
 
-This document covers security risks when using the `agentic-pm` CLI, particularly with custom repositories.
+This document covers security risks when using the `apm-strata` CLI, particularly with custom repositories.
 
 ## Custom Repository Risks
 
@@ -46,6 +46,6 @@ When using `apm custom` to install templates from third-party repositories, you 
 
 ## Reporting Security Issues
 
-If you discover a security vulnerability in the `agentic-pm` CLI or official templates, please report it by opening an issue at https://github.com/AlvaroTena/apm-strata/issues with the "security" label, or contact the maintainer directly.
+If you discover a security vulnerability in the `apm-strata` CLI or official templates, please report it by opening an issue at https://github.com/AlvaroTena/apm-strata/issues with the "security" label, or contact the maintainer directly.
 
 Do not publicly disclose vulnerabilities until they have been addressed.

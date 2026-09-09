@@ -8,7 +8,7 @@ Thank you for considering contributing to APM! Your contributions help build a b
 
 - **Search existing issues** first: [GitHub Issues](https://github.com/AlvaroTena/apm-strata/issues)
 - **For new bug reports**, include:
-  - APM CLI version (run `apm --version` or `npm list -g agentic-pm`)
+  - APM CLI version (run `apm --version` or `npm list -g apm-strata`)
   - Node.js and npm versions (run `node --version` and `npm --version`)
   - Claude Code version (`claude --version`)
   - Agent type experiencing issues (Planner, Manager, or Worker)
