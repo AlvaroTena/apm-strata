@@ -29,6 +29,10 @@ has_dependencies: true
 # Task 2.9: Coordinator skill hooks
 
 Implement the hook scripts and the frontmatter fragment that declares them.
+
+## Spec Deltas
+
+none - builds the settings screen from scratch
 `;
 
 const TRACKER = `# Project Tracker
@@ -225,6 +229,185 @@ describe('dispatch gate: task identity', () => {
 
     expect(status).toBe(2);
     expect(stderr).toContain('Retire the legacy parcel router');
+  });
+});
+
+describe('dispatch gate: spec deltas condition', () => {
+  const busFile = () => path.join(project, '.apm', 'bus', 'review-agent', 'task.md');
+  const DELTAS_PATH = '.apm/openspec/parcel-router/changes';
+
+  /** Returns the fixture prompt with its Spec Deltas section body replaced. */
+  function withDeltas(body) {
+    return TASK_PROMPT.replace(
+      '## Spec Deltas\n\nnone - builds the settings screen from scratch\n',
+      `## Spec Deltas\n\n${body}\n`
+    );
+  }
+
+  /** Dispatches a prompt with a Write and returns the verdict. */
+  function dispatch(content) {
+    return runGate({ file_path: busFile(), content });
+  }
+
+  it('blocks a prompt without the section and names the heading', () => {
+    const { status, stderr } = dispatch(TASK_PROMPT.replace(/## Spec Deltas[\s\S]*$/, ''));
+
+    expect(status).toBe(2);
+    expect(stderr).toContain('## Spec Deltas');
+    // The message carries both valid forms, so the reader can fix the prompt
+    // without opening the guide.
+    expect(stderr).toContain('none - <why this Task changes no specification>');
+    expect(stderr).toContain('.apm/openspec/<change>/changes');
+  });
+
+  it('blocks "none" without a reason', () => {
+    for (const body of ['none - ', 'none -', 'none']) {
+      const { status, stderr } = dispatch(withDeltas(body));
+      expect(status, `"${body}" must block`).toBe(2);
+      expect(stderr).toContain('carries no reason');
+    }
+  });
+
+  it('allows "none" with a reason', () => {
+    expect(dispatch(withDeltas('none - builds the settings screen from scratch')).status).toBe(0);
+  });
+
+  it('blocks a heading with nothing under it', () => {
+    const { status } = dispatch(TASK_PROMPT.replace(/(## Spec Deltas)[\s\S]*$/, '$1\n\n'));
+
+    expect(status).toBe(2);
+  });
+
+  it('blocks a first line that is neither form', () => {
+    for (const body of ['## Validation', 'see the change folder', '.apm/openspec/changes', 'docs/parcel-router/changes']) {
+      const { status } = dispatch(withDeltas(body));
+      expect(status, `"${body}" must block`).toBe(2);
+    }
+  });
+
+  it('blocks a deltas path that does not exist and names it', () => {
+    const { status, stderr } = dispatch(withDeltas(DELTAS_PATH));
+
+    expect(status).toBe(2);
+    expect(stderr).toContain(`${DELTAS_PATH} does not exist`);
+  });
+
+  it('allows a deltas path that exists', async () => {
+    await fs.ensureDir(path.join(project, DELTAS_PATH));
+
+    expect(dispatch(withDeltas(DELTAS_PATH)).status).toBe(0);
+  });
+
+  it('reads a path in backticks the same as a bare one', async () => {
+    const quoted = withDeltas(`\`${DELTAS_PATH}\``);
+
+    expect(dispatch(quoted).status).toBe(2);
+
+    await fs.ensureDir(path.join(project, DELTAS_PATH));
+
+    expect(dispatch(quoted).status).toBe(0);
+  });
+
+  it('allows a write that clears the bus', () => {
+    expect(dispatch('').status).toBe(0);
+  });
+
+  it('blocks an Edit that deletes the section from the prompt on disk', async () => {
+    await fs.outputFile(busFile(), TASK_PROMPT);
+
+    const { status, stderr } = runGate(
+      {
+        file_path: busFile(),
+        old_string: '## Spec Deltas\n\nnone - builds the settings screen from scratch\n',
+        new_string: '',
+        replace_all: false
+      },
+      'Edit'
+    );
+
+    expect(status).toBe(2);
+    expect(stderr).toContain('no "## Spec Deltas" heading');
+  });
+
+  it('allows an Edit elsewhere in a prompt whose decision stands', async () => {
+    await fs.outputFile(busFile(), TASK_PROMPT);
+
+    const { status } = runGate(
+      {
+        file_path: busFile(),
+        old_string: 'Implement the hook scripts',
+        new_string: 'Implement both hook scripts',
+        replace_all: false
+      },
+      'Edit'
+    );
+
+    expect(status).toBe(0);
+  });
+
+  it('applies replace_all when rebuilding the edited prompt', async () => {
+    // The phrase appears in the body before it appears as the reason, so only
+    // replace_all reaches the decision line.
+    await fs.outputFile(
+      busFile(),
+      TASK_PROMPT.replace('them.\n', 'them.\n\nScope note: builds the settings screen from scratch.\n')
+    );
+
+    const edit = replaceAll => runGate(
+      {
+        file_path: busFile(),
+        old_string: 'builds the settings screen from scratch',
+        new_string: '',
+        replace_all: replaceAll
+      },
+      'Edit'
+    );
+
+    expect(edit(false).status).toBe(0);
+    expect(edit(true).status).toBe(2);
+  });
+
+  it('still blocks on an unchecked checklist when the decision is valid', async () => {
+    await writeChecklist(false);
+
+    const { status, stderr } = dispatch(TASK_PROMPT);
+
+    expect(status).toBe(2);
+    expect(stderr).toContain('Bundle snapshot refreshed');
+    expect(stderr).not.toContain('Spec Deltas decision');
+  });
+
+  it('reports every failing condition in one message', async () => {
+    await writeChecklist(false);
+    await fs.outputFile(path.join(project, '.apm', 'tracker.md'), TRACKER);
+
+    const { status, stderr } = dispatch(withDeltas('none'));
+
+    expect(status).toBe(2);
+    expect(stderr).toContain('Bundle snapshot refreshed');
+    expect(stderr).toContain('Retire the legacy parcel router');
+    expect(stderr).toContain('Spec Deltas decision');
+  });
+
+  it('never blocks a file that is not a Task Bus message, whatever it holds', () => {
+    for (const filePath of [
+      path.join(project, '.apm', 'bus', 'review-agent', 'report.md'),
+      path.join(project, '.apm', 'bus', 'review-agent', 'handoff.md'),
+      path.join(project, 'docs', 'task.md'),
+      path.join(project, '.apm', 'bus', 'review-agent', 'nested', 'task.md')
+    ]) {
+      const { status } = runGate({ file_path: filePath, content: withDeltas('none') });
+      expect(status, `${filePath} must not be gated`).toBe(0);
+    }
+  });
+
+  it('gates a worktree mailbox task.md the same as the shared one', () => {
+    // The path test matches any .apm/bus/<agent>/task.md, so a mailbox inside a
+    // worktree is gated too, with project paths still resolved from the cwd.
+    const mailbox = path.join(project, '.claude', 'worktrees', 'wt', '.apm', 'bus', 'review-agent', 'task.md');
+
+    expect(runGate({ file_path: mailbox, content: withDeltas('none') }).status).toBe(2);
+    expect(runGate({ file_path: mailbox, content: TASK_PROMPT }).status).toBe(0);
   });
 });
 

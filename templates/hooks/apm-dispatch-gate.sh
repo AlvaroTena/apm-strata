@@ -3,21 +3,23 @@
 # APM dispatch gate.
 #
 # A PreToolUse hook for Write and Edit. It blocks a write to a Task Bus file
-# (.apm/bus/<agent>/task.md) while either of two conditions holds:
+# (.apm/bus/<agent>/task.md) while any of three conditions holds:
 #
 #   - a checklist under .apm/checklists/ has an unchecked box;
 #   - the Task being dispatched is blocked by an open deferred item in the
-#     Tracker's Deferred table.
+#     Tracker's Deferred table;
+#   - the Task Prompt has no valid "## Spec Deltas" decision.
 #
 # Writing any other file never blocks. Exit 2 blocks the tool call and the
 # stderr text below becomes the reason the model is given, so every message
-# names the checklist item or the deferred item that caused the block - a
-# block that does not say why forces an investigation, which is worse than no
-# block at all.
+# names the checklist item, the deferred item or the Spec Deltas defect that
+# caused the block - a block that does not say why forces an investigation,
+# which is worse than no block at all.
 #
-# The Task being dispatched is read from the frontmatter of the content being
-# written, not from disk: the file is being created or replaced, so what is on
-# disk is the previous message or nothing.
+# The Task Prompt is read from the content being written, not from disk: a
+# Write replaces the file, so what is on disk is the previous message or
+# nothing. An Edit is the exception, because its payload carries only the
+# replacement - see where the content is assembled below.
 #
 # POSIX sh. No dependencies beyond awk, find and the shell.
 
@@ -101,11 +103,55 @@ if [ -n "$hook_cwd" ] && [ -d "$hook_cwd" ]; then
   cd "$hook_cwd" || exit 0
 fi
 
-# Write carries the whole file in `content`; Edit carries the replacement in
-# `new_string`. When neither holds the frontmatter, the Task identity is
-# unavailable and only the checklist condition can be evaluated.
-dispatched=$(json_string content tool_input)
-[ -n "$dispatched" ] || dispatched=$(json_string new_string tool_input)
+# Reports whether the tool input carries `key` at all, whatever its value. An
+# empty string and an absent key read the same through json_string, and an Edit
+# whose replacement is empty is exactly the one that deletes a section.
+json_has() {
+  printf '%s' "$payload" | awk -v key="$1" '
+    { buf = (NR == 1) ? $0 : buf "\n" $0 }
+    END {
+      anchor = index(buf, "\"tool_input\"")
+      if (anchor == 0) exit 1
+      exit (index(substr(buf, anchor), "\"" key "\"") > 0) ? 0 : 1
+    }
+  '
+}
+
+# Write carries the whole file in `content`. Edit carries only the replacement,
+# so the file it would leave behind is rebuilt from disk with the replacement
+# applied - the first occurrence, or every one when `replace_all` is true. The
+# rebuilt file, not the replacement text, is what the conditions read: an Edit
+# that deletes the Spec Deltas section has to block, and an Edit that touches
+# some other line of a well-formed prompt has to pass. When the file is not on
+# disk the replacement is all there is, and it is read as the whole content.
+if json_has content; then
+  dispatched=$(json_string content tool_input)
+elif json_has new_string && [ -f "$file_path" ]; then
+  replace_all=false
+  printf '%s' "$payload" | awk '
+    { buf = (NR == 1) ? $0 : buf "\n" $0 }
+    END { exit (buf ~ /"replace_all"[[:space:]]*:[[:space:]]*true/) ? 0 : 1 }
+  ' && replace_all=true
+  dispatched=$(TARGET=$file_path OLD=$(json_string old_string tool_input) NEW=$(json_string new_string tool_input) \
+    awk -v all="$replace_all" '
+      BEGIN {
+        file = ENVIRON["TARGET"]
+        while ((getline line < file) > 0) buf = buf line "\n"
+        old = ENVIRON["OLD"]
+        new = ENVIRON["NEW"]
+        if (old == "") { printf "%s", (buf == "") ? new : buf; exit }
+        out = ""
+        while ((p = index(buf, old)) > 0) {
+          out = out substr(buf, 1, p - 1) new
+          buf = substr(buf, p + length(old))
+          if (all != "true") break
+        }
+        printf "%s", out buf
+      }
+    ')
+else
+  dispatched=$(json_string new_string tool_input)
+fi
 
 task_id=$(printf '%s\n' "$dispatched" | awk '
   NR == 1 && $0 != "---" { exit }
@@ -200,6 +246,71 @@ if [ -n "$task_id" ] && [ -f "$TRACKER" ]; then
 $(printf '%s\n' "$deferred" | sed 's/^/  /')
   A status counts as open unless it reads as done, closed, resolved, complete,
   completed, dropped or [x]. Any other word, including an empty cell, blocks.
+"
+  fi
+fi
+
+# Condition three: the Task Prompt decides explicitly whether it carries spec
+# deltas. It needs a "## Spec Deltas" heading, and the first non-empty line
+# under it is either "none - <reason>" or a path .apm/openspec/<change>/changes
+# that exists as a directory, optionally wrapped in backticks. The decision is
+# a section rather than a sentence in the coordinator's guide because a
+# conditional rule nothing enforces is a rule that stops being applied.
+#
+# A write that leaves the Task Bus empty clears it rather than dispatching, so
+# it has no decision to make and is not held to this condition.
+if [ -n "$(printf '%s' "$dispatched" | tr -d '[:space:]')" ]; then
+  decision=$(DISPATCHED=$dispatched awk '
+    BEGIN {
+      n = split(ENVIRON["DISPATCHED"], line, "\n")
+      for (i = 1; i <= n; i++) {
+        sub(/\r$/, "", line[i])
+        if (line[i] ~ /^## Spec Deltas[[:space:]]*$/) break
+      }
+      if (i > n) { print "missing"; exit }
+      for (i++; i <= n; i++) {
+        sub(/\r$/, "", line[i])
+        if (line[i] !~ /^[[:space:]]*$/) break
+      }
+      if (i > n) { print "empty"; exit }
+      value = line[i]
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      printf "line %s", value
+    }
+  ')
+
+  problem=""
+  case "$decision" in
+    missing) problem="the Task Prompt has no \"## Spec Deltas\" heading." ;;
+    empty) problem="\"## Spec Deltas\" has no line under it." ;;
+    "line none - "?*) ;;
+    "line none" | "line none -") problem="\"none\" carries no reason after \"none - \"." ;;
+    *)
+      deltas_path=${decision#"line "}
+      case "$deltas_path" in
+        \`*\`) deltas_path=${deltas_path#\`}; deltas_path=${deltas_path%\`} ;;
+      esac
+      change=${deltas_path#".apm/openspec/"}
+      change=${change%"/changes"}
+      case "$deltas_path" in
+        ".apm/openspec/"*"/changes") ;;
+        *) change="" ;;
+      esac
+      case "$change" in
+        "" | */* | . | ..)
+          problem="\"${decision#"line "}\" is neither \"none - <reason>\" nor a .apm/openspec/<change>/changes path." ;;
+        *)
+          [ -d "$deltas_path" ] || problem="${deltas_path} does not exist as a directory."
+          ;;
+      esac
+      ;;
+  esac
+
+  if [ -n "$problem" ]; then
+    blocks="${blocks}Spec Deltas decision missing or invalid: ${problem}
+  The first non-empty line under \"## Spec Deltas\" must be one of:
+    none - <why this Task changes no specification>
+    .apm/openspec/<change>/changes (an existing directory, backticks allowed)
 "
   fi
 fi

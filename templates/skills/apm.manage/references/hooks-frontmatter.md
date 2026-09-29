@@ -16,7 +16,7 @@ Installation merges the declarations into the project's `.claude/settings.json`,
 
 Two hooks are installed:
 
-`apm-dispatch-gate.sh` runs on `PreToolUse`, matching `Write|Edit`. It blocks a write to `.apm/bus/<agent>/task.md` while a checklist under `.apm/checklists/` has an unchecked box, or while an open item in the Tracker's Deferred table names the Task being dispatched as blocked. It exits 2 to block, and the stderr text naming the item becomes the reason you are given. Writing any other file never blocks. The gate acts on the shared Task Bus, which is why the prompt is written there first: the terminal copy into a Worker's mailbox afterwards is not a write the gate sees, and does not need to be.
+`apm-dispatch-gate.sh` runs on `PreToolUse`, matching `Write|Edit`. It blocks a write to `.apm/bus/<agent>/task.md` while a checklist under `.apm/checklists/` has an unchecked box, while an open item in the Tracker's Deferred table names the Task being dispatched as blocked, or while the Task Prompt lacks a valid `## Spec Deltas` decision. That decision is the first non-empty line under the heading, and it is either `none - <reason>` or a `.apm/openspec/<change>/changes` path that exists as a directory, optionally in backticks. For an `Edit`, the gate reads the prompt as the edit would leave it, so an edit that removes the decision is blocked and one elsewhere in a valid prompt is not. A write that empties the Task Bus is not held to the decision. It exits 2 to block, and the stderr text naming the item becomes the reason you are given. Writing any other file never blocks. The gate acts on the shared Task Bus, which is why the prompt is written there first: the terminal copy into a Worker's mailbox afterwards is not a write the gate sees, and does not need to be.
 
 `apm-precompact.sh` runs on `PreCompact`. It leaves a reminder to run the recovery skill once the context window has been compacted. It never blocks: compaction proceeds either way.
 
@@ -42,7 +42,7 @@ One further observation from testing the frontmatter route: a skill-declared hoo
 
 The gate shortens a feedback loop. It does not own the rule.
 
-The conditions it enforces - no dispatch over an unchecked checklist, no dispatch of a Task an open deferred item blocks - are yours to honour whether or not a hook is watching. Treat a passing write as the absence of a block, not as confirmation that the conditions hold.
+The conditions it enforces - no dispatch over an unchecked checklist, no dispatch of a Task an open deferred item blocks, no dispatch without a spec deltas decision - are yours to honour whether or not a hook is watching. Treat a passing write as the absence of a block, not as confirmation that the conditions hold.
 
 Confirm the gate is live in the session type you actually run rather than assuming the declaration took effect: dispatch once with a box deliberately left unchecked and confirm the write is refused.
 
