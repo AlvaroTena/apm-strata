@@ -22,7 +22,7 @@ Accepts an optional `[agent-id]` argument. If registered, ignore it - the bus pa
 
 2. Resolve agent-id (unregistered Workers only): resolve `{ARGS}` against `.apm/bus/` directory names per `{SKILL_PATH:apm-communication}` §4.2 Agent ID Resolution. Initialize per `{SKILL_PATH:apm.work}` §2 Initiation.
 
-3. Read Task Bus at `.apm/bus/<agent-slug>/task.md`.
+3. Read Task Bus at `.apm/bus/<agent-slug>/task.md`, in the mailbox inside your worktree - the coordinator copied the prompt there before triggering you.
    - If empty, inform User that no pending Task is available. Await next invocation.
    - If content present, continue to step 4.
 

@@ -86,6 +86,18 @@ A dispatched Worker runs in its own background session. Two fixed texts move wor
 
 **Sessions are addressed by name,** in the form `<slug>-<stage>.<task>`. A session's return address changes when it is resumed, so an address captured from an earlier message is not reusable.
 
+### 4.5 Worktree Mailbox
+
+A Worker session is isolated in its own worktree, and the platform refuses any file edit that lands in the main checkout - a link that resolves there included. So the Worker never touches the shared `.apm/`. It works against a mailbox: a real `.apm/` directory inside its worktree, laid out like the shared one for the paths a Task uses. The Manager moves files across; the Worker never does.
+
+**The shared `.apm/` is the source of truth.** The mailbox is a working copy for one Task, and it is deleted with the worktree when the session is released. Anything not copied out before then is lost.
+
+**Inward, at dispatch and before every resume.** The Manager writes the Task Prompt to the shared Task Bus first, where the dispatch gate checks it, then copies into the mailbox the Task Bus, the domain's `handoff.md`, an empty `report.md`, the Stage directory of the Task Log, the Worker's Handoff Logs, the change directory of any spec delta, and anything else under `.apm/` the Task Prompt cites.
+
+**Outward, when the report trigger arrives and before anything else.** The Manager copies back the Report Bus, the Task Log, `handoff.md`, any new Handoff Log, and the change directory of any spec delta, mirrors the Task Bus - when the Worker cleared its copy, the shared one is cleared too - and then clears the mailbox's Report Bus, so each report is collected once. Only then is the report read. Collection always comes before release.
+
+**The paths do not change.** A Worker reads and writes `.apm/bus/<slug>/...` and `.apm/memory/...` exactly as written, relative to its worktree, and the trigger it sends back names the same `.apm/bus/<slug>/report.md` - which, for the Manager, means the one inside that session's worktree.
+
 ---
 
 **End of Skill**

@@ -12,6 +12,8 @@ You participate at the communication level only - you receive work through the b
 
 ## 2. Setup
 
+You work from the workspace itself, not from a Worker worktree, so you read and write the shared `.apm/bus/` directly. The worktree mailbox described in the communication skill applies only to Worker sessions.
+
 Create your own bus directory in `.apm/bus/`:
 1. Choose a slug for your identity (lowercase, hyphenated name) that does not conflict with existing directories in `.apm/bus/`. Example: `external-reviewer`. This slug is your identifier for all bus communication - the Manager uses it to find your reports.
 2. Create your bus directory: `.apm/bus/<your-agent-slug>/`.
