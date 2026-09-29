@@ -10,36 +10,53 @@ reason is in the last rule below.
 
 ## Layout
 
-Deltas live under a specs root inside the project's APM directory. In a project that
-installs this fork, that root is `.apm/openspec/`:
+Each change owns one directory under the project's APM directory, and that directory holds
+both halves: the baseline the change is checked against and the delta itself. In a project
+that installs this fork, a change on the branch `feat/recurring-slots` lives here:
 
 ```
 .apm/openspec/
-  specs/
-    scheduling/
-      spec.md              <- the baseline: what is true today
-  changes/
-    add-recurring-slots/
-      specs/
-        scheduling/
-          spec.md          <- the delta: what this change does to it
+  feat-recurring-slots/            <- the change: its branch name, "/" replaced by "-"
+    specs/
+      scheduling/
+        spec.md                    <- the baseline: what is true today
+    changes/
+      feat-recurring-slots/
+        specs/
+          scheduling/
+            spec.md                <- the delta: what this change does to it
 ```
 
 A delta at `<root>/changes/<change>/specs/<capability>/spec.md` is checked against the
 baseline at `<root>/specs/<capability>/spec.md`. The root is derived from the path: the
 validator takes the last `changes` segment and treats everything before it as the root,
-so the tree can sit anywhere as long as the two halves mirror each other. One change
-directory may carry deltas for several capabilities, one subdirectory each.
+so the tree can sit anywhere as long as the two halves mirror each other. Here the root is
+the change's own directory, so no other change reads its baseline. A shared root is what
+this layout replaces: with two sessions working at once, two changes to the same
+capability overwrote each other's baseline. One change directory may carry deltas for
+several capabilities, one subdirectory each.
+
+**The baseline is written by whoever prepares the work, before the delta.** It describes
+the current behaviour of what the change touches, read from the code on the base branch,
+and it is limited to the requirements the delta's `MODIFIED` and `REMOVED` blocks name. It
+is not a specification of the project. A delta with only `ADDED` blocks needs no baseline.
+The person carrying out the change does not rewrite the baseline; a follow-up to the same
+change keeps the baseline it started with.
 
 When no baseline exists at the derived path, the delta is checked as if the baseline were
 empty. That is the right behaviour for a capability being specified for the first time,
 and it is worth knowing about, because a delta that modifies a requirement will then fail
 on the matching key rather than pass silently.
 
+**The directory goes when the change is merged.** Once the branch is merged, delete
+`.apm/openspec/<change>/` whole. Do not fold the delta into the baseline and do not keep
+the baseline for the next change: after the merge it describes code that no longer exists,
+and the next change writes its own from the code it touches.
+
 ## Validating
 
 ```bash
-apm delta validate .apm/openspec/changes/add-recurring-slots
+apm delta validate .apm/openspec/feat-recurring-slots/changes
 ```
 
 The argument is a delta document or any directory containing them; a directory is walked
@@ -47,18 +64,33 @@ and every `spec.md` under it is checked. The command reports per document and ex
 non-zero if any document has a violation:
 
 ```
-[SUCCESS] .apm/openspec/changes/add-recurring-slots/specs/scheduling/spec.md: valid
+[SUCCESS] .apm/openspec/feat-recurring-slots/changes/feat-recurring-slots/specs/scheduling/spec.md: valid
 [SUCCESS] 1 delta(s) valid.
 ```
 
 ```
-[ERROR]   .apm/openspec/changes/add-recurring-slots/specs/scheduling/spec.md: 1 violation(s)
+[ERROR]   .apm/openspec/feat-recurring-slots/changes/feat-recurring-slots/specs/scheduling/spec.md: 1 violation(s)
 [INFO]      line 16 [modified-completeness] MODIFIED "Slot Booking" omits scenario(s) the spec still has: "Overlapping slot". A MODIFIED requirement replaces the whole block, so an omitted scenario is deleted.
 [ERROR]   Delta validation failed with 1 violation(s)
 ```
 
 Every violation names the rule it broke and the line it broke it on, so the message is
 actionable without opening the validator.
+
+**Point it at the change's `changes` directory, never at the change directory itself.**
+Because every `spec.md` below the argument is checked as a delta, a directory that
+contains the baseline reads the baseline as a delta too. A baseline's requirements belong
+to no operation group, so it fails even when the delta is valid:
+
+```
+[SUCCESS] .apm/openspec/feat-recurring-slots/changes/feat-recurring-slots/specs/scheduling/spec.md: valid
+[ERROR]   .apm/openspec/feat-recurring-slots/specs/scheduling/spec.md: 2 violation(s)
+[INFO]      line 5 [operation-group] Requirement "Slot Booking" sits outside an ADDED, MODIFIED or REMOVED group.
+[INFO]      line 19 [operation-group] Requirement "Cancellation Window" sits outside an ADDED, MODIFIED or REMOVED group.
+[ERROR]   Delta validation failed with 2 violation(s)
+```
+
+The same applies to `.apm/openspec/` as a whole, which holds every open change's baseline.
 
 ## Format
 
@@ -98,6 +130,38 @@ The system SHALL reject a booking whose start time is in the past.
 ## REMOVED Requirements
 
 ### Requirement: Cancellation Window
+```
+
+The baseline that delta is checked against, and that the outputs on this page were produced
+from, carries only the two requirements the delta modifies or removes:
+
+```markdown
+# Scheduling
+
+## Requirements
+
+### Requirement: Slot Booking
+
+The system SHALL reject a booking whose start time is in the past.
+
+#### Scenario: Past start time
+
+- **WHEN** a booking starts before the current time
+- **THEN** the request is rejected
+
+#### Scenario: Overlapping slot
+
+- **WHEN** a booking overlaps an existing one
+- **THEN** the request is rejected
+
+### Requirement: Cancellation Window
+
+The system SHALL accept a cancellation up to one hour before the slot starts.
+
+#### Scenario: Late cancellation
+
+- **WHEN** a cancellation arrives less than one hour before the slot
+- **THEN** the cancellation is rejected
 ```
 
 The three operations are `ADDED`, `MODIFIED` and `REMOVED`, written as
