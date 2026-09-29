@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning (SemVer)](https://semver.org/spec/v2.0.0.html) for the **core CLI package** published on NPM.
 
-> **Note:** APM uses a decoupled versioning system. The CLI (`agentic-pm` on NPM) and template releases (GitHub Releases) version independently but share major version for compatibility. This changelog primarily tracks CLI changes, but major template releases may also be noted. See [VERSIONING.md](VERSIONING.md) for full details.
+> **Note:** APM uses a decoupled versioning system. The CLI (`apm-strata`, a tarball attached to each release; `agentic-pm` on NPM upstream) and template releases (GitHub Releases) version independently but share major version for compatibility. This changelog primarily tracks CLI changes, but major template releases may also be noted. See [VERSIONING.md](VERSIONING.md) for full details.
 
 ---
 
@@ -32,8 +32,10 @@ mechanic.
   installation created before this release keeps its block in `CLAUDE.md`; the planning
   procedure moves it the next time it runs.
 
-* **The CLI installs from git, not from npm.** The package keeps upstream's name,
-  `agentic-pm`, and is not renamed. `npm install -g AlvaroTena/apm-strata`.
+* **The CLI is renamed to `apm-strata` and installs from the tarball attached to each
+  release,** not from npm and not from git. Sharing upstream's name made a global install
+  fail wherever upstream was already installed, and a global install from git links a
+  directory in npm's cache instead of installing the package. See the README for the URL.
 
 * **`apm-assist` was removed.** It described the upstream command set and migration from
   v0.5.x, neither of which applies to this fork.
