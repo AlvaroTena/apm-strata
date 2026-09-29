@@ -191,7 +191,7 @@ compatibility_issues: true | false
 
 ### 4.3 Domain Notes Format
 
-`handoff.md` in your bus directory is the only file that carries anything between your domain's sessions. Unlike the Task Bus and Report Bus, it is not cleared after reading: it persists for the life of the domain.
+`handoff.md` in your bus directory is the only file that carries anything between your domain's sessions. Unlike the Task Bus and Report Bus, it is not cleared after reading: it persists for the life of the domain. The copy in your worktree's mailbox is the one you edit; the coordinator carries it back to the shared bus when your report is collected.
 
 **Location:** `.apm/bus/<agent-slug>/handoff.md`
 

@@ -87,14 +87,18 @@ Merge state is a dispatch prerequisite. Merge completed feature branches into th
 
 The reason is the brief. The User reads what the Task produced only after the review, and may call for a correction. That correction goes to the Task's own session, which still holds the context of the attempt - so a session released in the same breath as the merge takes that option away before the User ever had it. A merged Task whose session is still around costs a worktree; a released one costs a fresh session and a cold start.
 
-Releasing a session refuses unless its worktree is clean and its commits are on a remote. Which path applies depends on the project:
+**Collect before releasing.** Releasing deletes the worktree and the mailbox inside it, so whatever was not collected is gone. A session reaches release only after its last report was collected per §3.1 Report Processing.
 
-- *With a remote:* push the Task branch, then release the session by its short id. Nothing is discarded.
+**Releasing** is `claude rm <short id>` on the stopped session. It deletes the session, its worktree and the lock the platform holds on that worktree in one step. It refuses unless the worktree is clean and its commits are on a remote, and each refusal prints what clears it. Which path applies depends on the project:
+
+- *With a remote:* push the Task branch, then release. Nothing is discarded.
 - *Without a remote:* merge first, then release with the discard option, passing the exact value the refusal message prints. This throws away the worktree's commits, which is safe only because the merge already carried them to the base branch. Never use it before merging.
 
-If a release is refused for uncommitted changes, look for an untracked `.apm` link - the ignore entry must be `.apm` with no trailing slash per `{GUIDE_PATH:task-assignment}` §2.5 Version Control Standards.
+A refusal for uncommitted changes means git sees something untracked in the worktree - usually a copied bundle entry or the mailbox missing from the exclude file, per `{GUIDE_PATH:task-assignment}` §2.5 Version Control Standards. Run `git status --porcelain` in the worktree, fix the ignore entry behind each line it prints, and release again. Do not fall back to `git worktree remove`: git refuses a worktree the platform has locked for its session, and forcing past both the lock and the dirty state discards whatever made the worktree dirty instead of explaining it.
 
-**Branch cleanup:** releasing a session deletes no refs. Two branches survive it - the Task branch and the branch the launch created alongside the worktree - and both are deleted separately. During Stage-end sweeps, batch the deletions into a single terminal invocation.
+**Branch cleanup:** releasing a session keeps the Task branch, and keeps the `worktree-<session name>` branch created with the worktree unless the worktree still had it checked out, in which case the release takes it along. Delete whichever of the two remain with `git branch -d` once the Task branch is merged. When `-d` refuses, the branch holds work the base branch does not: check what it is before deleting anything. Delete the remote copy of the Task branch too when it was pushed only so the release could pass. During Stage-end sweeps, batch the deletions into a single terminal invocation.
+
+**Delta cleanup:** when the Task carried a spec delta, delete `.apm/openspec/<change>/` once its branch is merged, per `{GUIDE_PATH:task-assignment}` §2.8 Spec Delta Standards.
 
 ### 2.6 Stage Summary Standards
 
@@ -136,8 +140,8 @@ Execute when a Worker session's trigger names its Report Bus, or when the User r
 
 Perform the following actions:
 1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
-2. Read the report from the Report Bus (`.apm/bus/<agent-slug>/report.md`).
-3. Stop the reporting session by its short id per §2.4 Session Coordination Standards.
+2. Stop the reporting session by its short id per §2.4 Session Coordination Standards.
+3. Collect the session's mailbox into the shared `.apm/` per `{SKILL_PATH:apm-communication}` §4.5 Worktree Mailbox, by terminal copy from `<checkout>/.claude/worktrees/<session name>/.apm/`: the Report Bus, the Task Log, `handoff.md`, any new Handoff Log and the change directory of any spec delta, then mirror the Task Bus and clear the mailbox's Report Bus. When another session of the same domain was collected while this one ran, the shared `handoff.md` has moved on since it was copied in: merge this session's changes into it instead of overwriting it. Then read the report from the shared Report Bus (`.apm/bus/<agent-slug>/report.md`).
 4. Check whether the report says the Task is unfinished with a continuation pending - a session that ran out of context part-way through. If so, verify the Handoff Log exists and note it in Worker tracking. The Task is not Done: launch a replacement session for it rather than reviewing it as complete. No dependency context changes, because every Task already receives full context for every dependency per `{GUIDE_PATH:task-assignment}` §2.1 Dependency Context Standards.
 5. Check for auto-compaction indication - a Worker that recovered from auto-compaction notes it in the Task Report. If detected, update Worker tracking Notes in the Tracker (e.g., "auto-compacted, recovered") and say so in `context.md` when staging, so the lenses know part of the Task Log's account is reconstructed rather than first-hand.
 6. Update dispatch tracking: mark this Worker as available, note completed Task(s) for readiness assessment.
@@ -356,6 +360,7 @@ Work the review found and deliberately did not do. It lives here as well as in t
 - *Reviewing a log that is not complete:* A log with no `## Claims` section is unfinished, not a Task with nothing to claim. Marking it Done accepts a Task whose evidence was never stated.
 - *Deferring by announcement:* Naming something as deferred in the brief and leaving the tracker item or the table row for later. Neither exists unless it was written in the same step, and the row is what the dispatch gate reads.
 - *Inventing a closed status:* The gate recognises a fixed set of closed values and blocks on everything else. "Won't fix" and an empty cell both keep the blocked Tasks blocked.
+- *Reading the report before collecting it:* The trigger's path is relative to the Worker's worktree. Until the mailbox is collected, the shared Report Bus is still empty, and an empty bus read there looks like a report that never came.
 - *Unacknowledged recovery:* When a Worker report indicates auto-compaction occurred, factor this into the assessment - reconstructed context may have affected report completeness.
 - *Single-document tunnel vision:* Updating the Spec without checking whether the Plan references the same content, or modifying the Plan without assessing whether the Spec's design assumptions still hold. Changes to one planning document often cascade to the other.
 - *Symptom treatment:* Modifying one document to work around an issue that should be addressed in another. When an issue surfaces in execution, trace it to the document where the root cause lives rather than patching around it elsewhere.

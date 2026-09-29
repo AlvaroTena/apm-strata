@@ -110,9 +110,9 @@ A Worker is a persistent identity and an ephemeral execution. The identity - slu
 
 **Lifecycle.**
 
-1. *Dispatch.* The Manager writes the Task Prompt to the Task Bus, launches a background session on a worktree of that name, links `.apm` into the worktree, records **both** session identifiers in the Tracker, and sends the trigger.
-2. *Execution.* The session reads the domain's `handoff.md`, validates identity, reads the Task Prompt, branches, works, validates, writes the Task Log, updates `handoff.md` for the next session in the domain, writes the report and triggers the Manager.
-3. *Stop.* On receiving the report the Manager stops the session, which frees resources and keeps the conversation.
+1. *Dispatch.* The Manager writes the Task Prompt to the shared Task Bus, where the dispatch gate checks it, creates the worktree under `.claude/worktrees/` itself, copies into it the installed bundle, the project settings and the Rules file, fills its `.apm/` mailbox from the shared `.apm/`, launches a background session with the same name so the launch opens that worktree, records **both** session identifiers in the Tracker, and sends the trigger.
+2. *Execution.* The session reads the domain's `handoff.md`, validates identity, reads the Task Prompt, branches, works, validates, writes the Task Log, updates `handoff.md` for the next session in the domain, writes the report and triggers the Manager. Everything it reads and writes lies inside its worktree: the platform refuses any file edit that resolves into the main checkout.
+3. *Stop and collect.* On receiving the report the Manager stops the session, which frees resources and keeps the conversation, copies the report, the Task Log, the domain notes and any Handoff Log or delta from the mailbox back to the shared `.apm/`, and only then reads the report. Collection always precedes release, because releasing deletes the mailbox with the worktree.
 4. *Review.* Per §9.3. A follow-up resumes the same session, which retains its context, and repeats until the review closes.
 5. *Release.* The Manager merges from the main checkout and releases the session and its worktree.
 
@@ -120,7 +120,7 @@ A Worker is a persistent identity and an ephemeral execution. The identity - slu
 
 **Release has two preconditions, not one:** a clean worktree, and every commit of its branch present on a remote. A local merge satisfies only the first, so a project with a remote publishes the branch before releasing, and one without discards the worktree's unpushed commits explicitly - only after merging. Releasing does not delete refs; the task branch and the automatic worktree branch are deleted separately.
 
-**Where the worktree lives is load-bearing.** It is created inside the main checkout, and that is exactly why Rules reach it: the platform walks up parent directories, and the main checkout is an ancestor. A worktree placed elsewhere does not see the workspace Rules file. No guide may propose another location.
+**Where the worktree lives is load-bearing.** It is created inside the main checkout, and that is exactly why Rules reach it: the platform walks up parent directories, and the main checkout is an ancestor. A worktree placed elsewhere does not see the workspace Rules file. No guide may propose another location. The worktree is created by the Manager rather than by the launch, because the bundle has to be in place before the session resolves its first skill.
 
 **Dependencies.** Every Task runs in a fresh session with no memory of earlier ones, so the Manager writes full dependency context into every Task Prompt, including dependencies on Tasks the same Worker produced. The same-agent and cross-agent distinction survives only in the Plan and its graph.
 
@@ -155,6 +155,8 @@ The Message Bus is a file-based mechanism in `.apm/bus/`. The Planner initialize
 | Handoff Bus | `handoff.md` | Outgoing → incoming agent | Handoff prompt content |
 
 A bus file is either empty or holds a message awaiting delivery. Before writing an outgoing file, an agent clears its incoming one. Agents read a bus file before writing it.
+
+A Worker Session never touches the shared bus. It works against a mailbox, a real `.apm/` inside its worktree with the same relative layout, which the Manager fills at dispatch and collects on report. The shared `.apm/` stays the single source of truth.
 
 ### 6.3 Triggers
 

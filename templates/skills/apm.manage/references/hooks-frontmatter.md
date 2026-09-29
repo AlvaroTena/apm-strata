@@ -16,7 +16,7 @@ Installation merges the declarations into the project's `.claude/settings.json`,
 
 Two hooks are installed:
 
-`apm-dispatch-gate.sh` runs on `PreToolUse`, matching `Write|Edit`. It blocks a write to `.apm/bus/<agent>/task.md` while a checklist under `.apm/checklists/` has an unchecked box, or while an open item in the Tracker's Deferred table names the Task being dispatched as blocked. It exits 2 to block, and the stderr text naming the item becomes the reason you are given. Writing any other file never blocks.
+`apm-dispatch-gate.sh` runs on `PreToolUse`, matching `Write|Edit`. It blocks a write to `.apm/bus/<agent>/task.md` while a checklist under `.apm/checklists/` has an unchecked box, or while an open item in the Tracker's Deferred table names the Task being dispatched as blocked. It exits 2 to block, and the stderr text naming the item becomes the reason you are given. Writing any other file never blocks. The gate acts on the shared Task Bus, which is why the prompt is written there first: the terminal copy into a Worker's mailbox afterwards is not a write the gate sees, and does not need to be.
 
 `apm-precompact.sh` runs on `PreCompact`. It leaves a reminder to run the recovery skill once the context window has been compacted. It never blocks: compaction proceeds either way.
 

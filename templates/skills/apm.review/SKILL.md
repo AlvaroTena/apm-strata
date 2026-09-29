@@ -16,13 +16,11 @@ If you are a Planner, Worker, or non-APM agent, concisely decline and take no ac
 Accepts optional `[agent-id ...]` arguments. With arguments, checks those Workers' Report Buses. Without arguments, checks Workers with active dispatches plus a health check for unexpected content.
 
 **Procedure:**
-1. Determine scan scope:
-   - If `{ARGS}` provided, resolve each agent-id per `{SKILL_PATH:apm-communication}` §4.2 Agent ID Resolution. Batch-read all targeted Report Buses in a single terminal invocation, e.g., `cat .apm/bus/<slug-1>/report.md .apm/bus/<slug-2>/report.md` (or platform equivalent). Continue to step 3.
-   - If no argument, continue to step 2.
+1. Collect before reading. A Worker writes its report into the mailbox inside its own worktree, so a report that was never collected is invisible on the shared bus. Scan the mailboxes in a single terminal invocation, e.g., `for f in .claude/worktrees/*/.apm/bus/*/report.md; do [ -s "$f" ] && echo "=== $f ===" && cat "$f"; done` (or platform equivalent), limited to the sessions `{ARGS}` names when it is provided - resolve each agent-id per `{SKILL_PATH:apm-communication}` §4.2 Agent ID Resolution. For each non-empty mailbox report, stop its session and collect its mailbox per `{GUIDE_PATH:task-review}` §3.1 Report Processing.
 
-2. Scan Report Buses: scan and read all Report Buses in a single terminal invocation, e.g., `for f in .apm/bus/*/report.md; do [ -s "$f" ] && echo "=== $f ===" && cat "$f"; done` (or platform equivalent). This discovers non-empty buses, reads their content, and includes path markers for cross-referencing against active dispatches. If any unexpected bus has content (beyond the actively dispatched Workers), include it and inform the User. If no buses have content, inform User that no pending reports are available. Await next invocation. If one or more have content, continue to step 3 for each.
+2. Scan the shared Report Buses: read them in a single terminal invocation, e.g., `for f in .apm/bus/*/report.md; do [ -s "$f" ] && echo "=== $f ===" && cat "$f"; done` (or platform equivalent), or only the targeted ones when `{ARGS}` is provided. This includes path markers for cross-referencing against active dispatches, and catches reports from non-APM agents, which write to the shared bus directly. If any unexpected bus has content (beyond the actively dispatched Workers), include it and inform the User. If no buses have content, inform User that no pending reports are available. Await next invocation. If one or more have content, continue to step 3 for each.
 
-3. Process report(s): for each Report Bus with content, process per `{GUIDE_PATH:task-review}` §3 Task Review Procedure.
+3. Process report(s): for each Report Bus with content, process per `{GUIDE_PATH:task-review}` §3 Task Review Procedure, skipping the stop and collection steps for sessions already collected in step 1.
 
 ---
 
