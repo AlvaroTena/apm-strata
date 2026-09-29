@@ -140,7 +140,7 @@ Present reasoning under the header **Plan Analysis:** with sub-headers **Domain 
    - *Pre-write checks.* Verify the analysis is complete: every Task was analyzed with all aspects covered (Worker assignment, scope, guidance, validation, dependencies, steps), workload is reasonably distributed across Workers, all cross-agent dependencies are identified, and notes for the Manager are ready per §2.1 Workflow Context. Correct issues before proceeding.
 2. Read `.apm/plan.md`, then write the full Plan per §4.2 Plan Format. Set `title` to the project name (same as Spec) and `modified` to "Plan creation by the Planner." Enrich Task details from reasoning. Ensure every cross-agent dependency is bolded at write time. Include the Dependency Graph in the Plan header.
 3. Apply the size guard. Count the independent deliverables the Plan produces - the ones that do not depend on each other and could be delivered separately:
-   - When the count reaches two or more, propose narrowing the objective to one of them and moving the rest to the long-horizon backlog, carrying the evidence that led you to count them as separate deliverables.
+   - When the count reaches two or more, propose narrowing the objective to one of them and moving the rest to the long-horizon backlog, carrying the evidence that led you to count them as separate deliverables. The tracker that holds the backlog is declared when the Rules are written, so the items for the moved deliverables are created then, per §3.3 Rules Analysis.
    - This is not a gate. The User can keep the full scope, and the Plan then carries a note recording the split you proposed and the reason it was rejected per §4.2 Plan Format.
    - An objective-bounded session only holds when what does not fit has somewhere to go. Without that, either the Plan absorbs the overflow and the session grows without a boundary, or the work is lost.
 4. Write `.apm/checklists/plan.md` per §4.4 Requirement Quality Checklist Format. Every item is a question about the quality of what the Plan says, never about the implementation it describes, and every checkbox is left unmarked.
@@ -161,14 +161,16 @@ Perform the following actions per §2.5 `{RULES_FILE}` Standards:
    - **From gathered context:** workflow preferences, conventions, or quality requirements from Context Gathering not yet captured in the Spec or the Plan. Version control conventions are excluded - the Manager handles those and appends content to Rules during the start of the Implementation Phase.
    - **Classification:** Separate patterns that apply to all or most Tasks from narrowly Task-specific ones per §2.5 `{RULES_FILE}` Standards. Most projects produce few genuinely universal rules - project-specific constraints and output specifications belong in the Spec or Task guidance even when they apply to multiple Workers.
    - **Existing standards:** what `{RULES_FILE}` already contains; reference rather than duplicate.
-   - **Declaration blocks:** any block already declared per §4.5 Project Declaration Blocks, including one recorded during Context Gathering. Writing the APM_RULES block replaces it in full, so a declaration left out here is a mechanism silently switched off. Carry each one into the new block verbatim.
+   - **Declaration blocks:** any block already declared per §4.5 Project Declaration Blocks, including one recorded during Context Gathering. Writing the APM_RULES block replaces it in full, so a declaration left out here is a mechanism silently switched off. Carry each one into the new block verbatim. When no `## Tracker` block is among them, the block you write in action 3 carries the default `file` tracker.
 2. Determine the target file. Ask the User whether the Rules should be version controlled - if yes, the target file is `CLAUDE.md`; if not, it is `{RULES_FILE}`. When the target is `{RULES_FILE}`, recommend adding it to the project `.gitignore` unless it is already listed there.
 3. Read `{RULES_FILE}` and `CLAUDE.md` (or confirm they do not exist), then write the APM_RULES block to the target file per §4.3 APM_RULES Block. The target file ends with exactly one block and the other file ends with none:
    - If the target file already contains a block, replace it in full - the `APM_RULES {` line through the `} //APM_RULES` marker. Otherwise add the block, creating the target file when it does not exist.
    - If the other file contains a block, delete that block from it. The block moves to the file the User chose rather than staying where it was found.
+   - If no `## Tracker` block is declared, write the default `file` Tracker block per §4.5 Project Declaration Blocks into the block. Then create `.apm/backlog.md` with the backlog header per §4.5 when it does not exist. When it exists, leave it untouched - it holds the deferred work of earlier sessions.
+   - If the size guard moved deliverables out of the objective, create one item for each with the `create` command of the `## Tracker` block now in place.
    - Preserve all content outside the block unchanged in both files.
 4. Pause for User review:
-   - State Rules are complete and name the file that was written. When a block was replaced in place, state that. When a block was moved, name the file it came from and the file it went to.
+   - State Rules are complete and name the file that was written. When a block was replaced in place, state that. When a block was moved, name the file it came from and the file it went to. When the default Tracker was declared, state that and whether `.apm/backlog.md` was created or found in place.
    - Ask User to review that file for accuracy.
    - If modifications needed, apply and repeat step 4.
    - If approved, state Work Breakdown is complete and all planning documents are created. Proceed to `{SKILL_PATH:apm.plan}` §5 Planning Phase Completion.
@@ -319,7 +321,7 @@ Each checklist reviews the quality of what its document says, not the implementa
 
 Blocks a project declares inside its APM_RULES block to turn a mechanism on. Other surfaces generate these blocks and read them, and a renamed heading or key raises no error - the mechanism finds nothing, does nothing, and says nothing. The headings and keys below are therefore fixed, and they stay in English whatever language the project writes its own rules in.
 
-Declare only the blocks the project uses. An undeclared block is not a defect: the step that reads it reports that nothing is declared and carries on.
+Declare only the blocks the project uses. An undeclared block is not a defect: the step that reads it reports that nothing is declared and carries on. The Tracker is the exception - every project that finishes Work Breakdown declares one, and a project that names no other gets the default `file` tracker per §3.3 Rules Analysis.
 
 ```text
 ## Tracker
@@ -346,9 +348,39 @@ Declare only the blocks the project uses. An undeclared block is not a defect: t
 - validate: <command>
 ```
 
-**Tracker.** Three requirements and no others: the tracker outlives the session, it is queried through a single command, and it is declared here. Outliving the session is a property, not a location: the default backlog sits at `.apm/backlog.md` and survives because archiving is built to leave that one file in place while it snapshots and clears everything else around it. A project that wants durability against losing the machine excepts that single path from `.gitignore` and versions it. It does not live in the knowledge layer either: a backlog has to be able to close, and the knowledge layer never archives.
+**Tracker.** Three requirements and no others: the tracker outlives the session, it is queried through a single command, and it is declared here. A project that names no other tracker declares the `file` type below, which keeps the backlog at `.apm/backlog.md`. Outliving the session is a property, not a location: that file survives because archiving is built to leave it in place while it snapshots and clears everything else around it. A project that wants durability against losing the machine excepts that single path from `.gitignore` and versions it. It does not live in the knowledge layer either: a backlog has to be able to close, and the knowledge layer never archives.
 
-`github-issues` is the only `type` with a defined item body in this version. Another type declares the same two commands and uses the same body. The body of a deferred item carries:
+**The `file` tracker.** Write the block exactly as below:
+
+```text
+## Tracker
+- type: file
+- query: awk -F'|' '$2 ~ /^ *D-[0-9]+ *$/ && $5 ~ /^ *open *$/' .apm/backlog.md
+- create: f=.apm/backlog.md; n=$(awk -F'|' '$2 ~ /^ *D-[0-9]+ *$/ { v = $2; gsub(/[^0-9]/, "", v); if (v + 0 > m) m = v + 0 } END { print m + 1 }' "$f"); awk -v r="| D-$n | <title> | <origin> | open |" 't && !d && !/^\|/ { print r; d = 1 } /^\| Id \|/ { t = 1 } { print } END { if (!d) print r }' "$f" > "$f.tmp" && { cat "$f.tmp"; printf '\n### D-%s - %s\n\n' "$n" "<title>"; cat <file>; } > "$f" && rm "$f.tmp"
+```
+
+Run both commands from the workspace root. `query` prints the open rows of the items table and prints nothing when no item is open. `create` assigns the next `D-<N>` identifier, adds the row to the items table, and appends `### D-<N> - <title>` under `## Detail` followed by the contents of `<file>`, which holds the item body described below. Substitute `<title>` with the item's title, `<origin>` with a short origin such as the Task, and `<file>` with the body file's path. Keep `<title>` and `<origin>` free of `|`, double quotes, `$`, backticks and backslashes - the command places them inside a shell string and a table row.
+
+Create `.apm/backlog.md` with this header, and nothing else, when it does not exist:
+
+```markdown
+# Backlog
+
+Work deferred out of a session objective. Archiving leaves this file in place and the next session's planning reads it before its question rounds, so an item here is acted on rather than remembered.
+
+Status vocabulary: `open` while the item stands, `closed` once it is done or no longer applies. An item is never deleted - closing it keeps the record of why it was deferred and what happened to it.
+
+## Items
+
+| Id | Item | Origin | Status |
+|----|------|--------|--------|
+
+## Detail
+```
+
+Close an item by setting its row's status and its body's state to `closed`, by hand. Nothing else edits the file.
+
+`github-issues` and `file` are the types with a defined item body in this version. Another type declares the same two commands and uses the same body. The body of a deferred item carries the four entries below, and for `file` it is written as one line each - `**Origin:**`, `**Evidence:**`, `**Reason:**`, `**State:**`:
 - *Origin:* the project, session, and Task the item came from.
 - *Evidence:* path of the finding, or of the Task Log that produced it.
 - *Reason:* why the work was deferred instead of done.

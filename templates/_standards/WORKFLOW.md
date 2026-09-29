@@ -14,7 +14,7 @@ APM is a multi-agent project management framework that coordinates agents throug
 
 **Four layers** - Every change belongs to exactly one: the platform, this template repository, the project that installs the template, and any cockpit the user runs on top. Three consequences hold throughout: no guide invokes a cockpit, no template carries a domain concept from any particular project, and Rules live in one place that every procedure loads as a step.
 
-**Declared mechanisms** - Every configurable mechanism - the deferred-work tracker, the knowledge layer consumer, external lenses, the ambiguity taxonomy, the lens model, the delta validator - is declared in the project's APM Rules block. The template defines the contract and the default. An undeclared mechanism is inert, not broken: the step that reads the declaration finds none, says so, and continues. Nothing is silently skipped and nothing is silently invented.
+**Declared mechanisms** - Every configurable mechanism - the deferred-work tracker, the knowledge layer consumer, external lenses, the ambiguity taxonomy, the lens model, the delta validator - is declared in the project's APM Rules block. The template defines the contract and the default. An undeclared mechanism is inert, not broken: the step that reads the declaration finds none, says so, and continues. Nothing is silently skipped and nothing is silently invented. The deferred-work tracker is the exception: the Planner always declares one, and the default is the `file` type over `.apm/backlog.md`.
 
 **Context scoping** - All agents have the same tools and the same access. Scoping is behavioral, shaped by what each agent reads: its initiation skill, the guides and skills that skill references, what those direct it to read, and what arrives through the bus. A Worker Session is scoped to its Task Prompt, the Rules block, and what it accumulates - it is never given the Spec, Plan, Tracker or Index. The scoping holds because nothing in its reading chain names those documents. The Manager holds the coordination-level view and keeps Worker scoping intact by extracting content into self-contained Task Prompts rather than pointing at documents.
 
@@ -197,7 +197,7 @@ Agents not managed by APM can participate by creating their own directory under 
 
 **Handoff Logs** hold working context not captured elsewhere.
 
-**Backlog** (`backlog.md`) is the long-horizon list of deferred work. Archiving leaves it in place while snapshotting and clearing everything around it, which is what makes it outlive the session.
+**Backlog** (`backlog.md`) is the long-horizon list of deferred work kept by the default `file` tracker. The Planner creates it with its header when writing the Rules of a project that declares no other tracker, and never overwrites one that already exists. Archiving leaves it in place while snapshotting and clearing everything around it, which is what makes it outlive the session.
 
 ### 7.2 Task Log Flags
 
@@ -228,7 +228,7 @@ The Planner scans the workspace, resolves what earlier sessions left open, then 
 
 **Workspace assessment** - Directory structure, git repositories, the Rules file, and the location of existing materials. Materials the initiation context establishes as authoritative are read directly; discovered materials are listed for the User to confirm.
 
-**Deferred work review** (`guides/context-gathering.md` §3.2) - After exploration and before the rounds, the Planner runs the declared tracker's query command, reads the section headed exactly `Deferred work` in the most recent archived session summary, and reads that archive's substrate audit. Every item collected gets one of three verdicts: it enters this Spec, it stays deferred, or it closes. This is a step that executes, not a question to the User. Work that survives only if someone remembers to raise it does not survive, so the read is part of the procedure that opens the session.
+**Deferred work review** (`guides/context-gathering.md` §3.2) - After exploration and before the rounds, the Planner runs the declared tracker's query command - or, in a project planned for the first time and so without a declaration yet, the default `file` query when `.apm/backlog.md` exists - reads the section headed exactly `Deferred work` in the most recent archived session summary, and reads that archive's substrate audit. Every item collected gets one of three verdicts: it enters this Spec, it stays deferred, or it closes. This is a step that executes, not a question to the User. Work that survives only if someone remembers to raise it does not survive, so the read is part of the procedure that opens the session.
 
 **Knowledge layer discovery** (§3.3) - The Planner looks for an existing vault by marker file or by the consumer's own diagnostic, declares it when found, and otherwise offers to create one. The decision sits here rather than in the installer because the installer runs before anything about the project is known and cannot verify a claim about a vault. The scaffolding command prints the declaration block without writing it, so declaring it is part of this step.
 
@@ -246,7 +246,7 @@ The Planner decomposes gathered context into the three documents through visible
 
 1. **Spec Analysis** - Design decisions, the workspace section, and notes for the Manager. Generates `.apm/checklists/spec.md` before the gate.
 2. **Plan Analysis** - Domains mapped to Workers, Stage structure, per-Task analysis, dependency verification. Generates `.apm/checklists/plan.md` before the gate.
-3. **Rules Analysis** - Universal execution patterns and the project's declaration blocks, written into the APM Rules block.
+3. **Rules Analysis** - Universal execution patterns and the project's declaration blocks, written into the APM Rules block. When no tracker is declared, the Planner writes the default `file` Tracker block and creates `.apm/backlog.md` with its header unless the file already exists.
 
 **The size guard** precedes the Plan gate. The Planner counts independent deliverables; at two or more it proposes narrowing the objective to one and moving the rest to the backlog with their evidence. It does not block - the User may keep the full scope, and the Plan then carries a note recording the proposed split and the reason it was rejected. An objective-bounded session only holds when what does not fit has somewhere to go.
 
@@ -361,7 +361,7 @@ At session close the audit reports claims in dispute and sources due for review.
 
 ### 11.2 Long-Horizon Backlog
 
-Deferred work needs somewhere that outlives the session. The default is `.apm/backlog.md`, which survives because archiving is built to leave that one file in place; a project may declare a different tracker, and the requirement is durability rather than a location. It does not live in the knowledge layer: a backlog has to be able to close, and the knowledge layer never archives.
+Deferred work needs somewhere that outlives the session, and the project's `## Tracker` declaration names it. The Planner always writes one when writing the Rules: a project that names no other tracker gets the `file` type, whose `query` and `create` commands operate on `.apm/backlog.md`, and the Planner creates that file when it does not exist. The file survives because archiving is built to leave it in place; a project may declare a different tracker, and the requirement is durability rather than a location. It does not live in the knowledge layer: a backlog has to be able to close, and the knowledge layer never archives.
 
 The four steps that make it work:
 
