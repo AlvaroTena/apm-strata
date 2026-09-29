@@ -35,7 +35,7 @@ scaffolding.
 The CLI ships as a tarball attached to each release, and installs from that URL.
 
 ```bash
-npm install -g https://github.com/AlvaroTena/apm-strata/releases/download/v1.1.0-alpha.2/apm-strata-1.1.0-alpha.2.tgz
+npm install -g https://github.com/AlvaroTena/apm-strata/releases/download/v1.1.0-alpha.3/apm-strata-1.1.0-alpha.3.tgz
 apm init
 ```
 

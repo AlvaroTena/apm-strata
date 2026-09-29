@@ -124,7 +124,7 @@ Two things an existing installation does not get on its own.
   it runs, deleting the duplicate, so this resolves itself - but until it does, an agent
   started against the old file finds no block.
 
-## [1.1.0-alpha.3] - Unreleased
+## [1.1.0-alpha.3] - 2026-09-30
 
 The third pre-release of 1.1.0. It lists only what changed since `v1.1.0-alpha.2`.
 
