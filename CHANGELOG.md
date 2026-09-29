@@ -124,6 +124,64 @@ Two things an existing installation does not get on its own.
   it runs, deleting the duplicate, so this resolves itself - but until it does, an agent
   started against the old file finds no block.
 
+## [1.1.0-alpha.3] - Unreleased
+
+The third pre-release of 1.1.0. It lists only what changed since `v1.1.0-alpha.2`.
+
+### Fixed
+
+* **Every prompt a Worker receives carries a `## Spec Deltas` section.** Its first
+  non-empty line is either `none - <reason>` or the validated
+  `.apm/openspec/<change>/changes` directory, decided in a numbered step before the prompt
+  is written, and when in doubt the delta is written. Corrections and assignments to
+  agents outside APM carry it too, and a Worker handed `none` confirms it or reports the
+  work as a deviation. The rule used to be a condition in the Manager's guide, and in an
+  accepted session it was read and then not applied to any of the work that changed
+  existing code.
+
+* **The dispatch gate refuses a prompt without a valid Spec Deltas decision.** It blocks
+  the write to the Worker's bus when the heading is missing, the section is empty, `none`
+  carries no reason, the first line is neither form, or the directory does not exist. For
+  an edit, it checks the prompt as the edit would leave it.
+
+* **Each Worker report is collected to its own path,** `.apm/review/<NN>-<MM>/report.md`,
+  and read from there. Two sessions of the same domain that reported at once used to be
+  collected into the one shared `report.md`, where the second overwrote the first before
+  anyone read it. The shared Report Bus now carries only reports from agents outside APM.
+
+* **The archived session summary links to a `file` backlog relative to where it is read,**
+  `../../backlog.md#<item>`. Archiving moves the summary into `.apm/archives/<session>/`
+  and leaves the backlog in place, so the old link pointed at nothing.
+
+### Added
+
+* **The Manager warns at start when the dispatch gate is not armed.** It checks that
+  `.claude/settings.json` declares the gate under `PreToolUse` and that the script exists,
+  and when either is missing it says what is missing, what goes unguarded and how to
+  reinstall. It does not stop the session.
+
+* **Workers review their own work with the lenses before reporting.** Once per attempt, a
+  Worker launches the applicable lenses on its own diff from its worktree, fixes and
+  commits what is plainly its own defect, and records every finding in a required
+  `## Self-Review` section of its log as `fixed <commit>`, `not fixed - <why>` or
+  `brief gap - <what>`. The raw findings are collected to `.apm/review/<NN>-<MM>/self/`.
+  The Manager's review and triage do not change: the Worker's section is read as the
+  author's account, not as a verdict.
+
+### Upgrade Notes
+
+* **Update before dispatching again.** A Manager on the previous guide writes prompts
+  without `## Spec Deltas`, and the new gate refuses them. Reinstall or run `apm update`
+  so the guides and the gate arrive together.
+
+* **Every Worker log gains a required `## Self-Review` section.**
+
+* **Each Worker attempt launches two to five more lenses.** That is added cost, paid for
+  fewer correction rounds.
+
+* **An installation made with the upstream CLI still has no gate,** and the Manager now
+  says so when it starts.
+
 ## [1.1.0-alpha.2] - 2026-09-29
 
 The second pre-release of 1.1.0. It lists only what changed since `v1.1.0-alpha.1`, which
