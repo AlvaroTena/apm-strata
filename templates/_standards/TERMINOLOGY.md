@@ -50,7 +50,7 @@ The APM Rules block is also where a project declares the mechanisms it turns on 
 | ------ | ------------ |
 | **Stage** | Milestone grouping of related Tasks representing a coherent project progression. |
 | **Task** | Discrete work unit with objective, deliverables, validation criteria, and dependencies. Tasks contain ordered sub-units (steps) that support failure tracing but have no independent validation. |
-| **Worker Session** | The Claude Code session in which one Task executes: a background session in its own worktree, named `<agent-slug>-<stage>.<task>`. The Manager creates it at dispatch, stops it on report, resumes it for a follow-up, and releases it after the merge. It is ephemeral - the Worker identity outlives it, the session does not. |
+| **Worker Session** | The Claude Code session in which one Task executes: a background session in its own worktree, named `<agent-slug>-<stage>.<task>`. The Manager creates it at dispatch, stops it on report, resumes it for a follow-up, and releases it after the merge. It is ephemeral - the Worker identity outlives it, the session does not. It works against a mailbox inside its worktree and never writes the shared `.apm/`. |
 
 ### Task Lifecycle States
 
