@@ -22,6 +22,12 @@ Pre-release versions (e.g., `v1.0.0-test-1`, `v1.1.0-beta-1`) are supported for 
 
 The `build/` directory, CI/CD workflows, and configuration files are not versioned. Changes are tracked via git history only.
 
+## Stable Releases Follow Acceptance
+
+The first stable version of a release line - `1.1.0`, for example - is published only once the project has passed its acceptance: a real session run with the release, checked against the acceptance criteria. Until then the line is published as pre-releases with an identifier, `1.1.0-alpha.1`, `1.1.0-alpha.2` and so on, and each round of fixes that acceptance calls for ships as the next one.
+
+The reason is where the fixes go. The first release of this fork was published as stable before it had been accepted, and the defects acceptance found right after had nowhere to land except as patches to a version nobody had validated. Held back as pre-releases, those fixes stay inside the line being tested, and the stable version, when it comes, is the one that passed. Because pre-releases are excluded from "latest", `apm init` and `apm update` keep resolving to the latest stable release while a line is still being tested; a pre-release is installed on purpose, with `--tag`.
+
 ## Version Compatibility
 
 The CLI and template releases are decoupled but tied by **major version**. CLI v1.x will only fetch v1.x.x releases from the official repository, ensuring template compatibility. Minor and patch versions can differ between CLI and templates.

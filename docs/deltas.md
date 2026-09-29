@@ -53,6 +53,67 @@ on the matching key rather than pass silently.
 the baseline for the next change: after the merge it describes code that no longer exists,
 and the next change writes its own from the code it touches.
 
+## Every assignment states its decision
+
+In a project that installs this fork, every piece of work handed to a Worker carries a
+section headed `## Spec Deltas`, and so does every correction sent back to one and every
+assignment to an agent outside APM. The section always exists. Its first non-empty line
+is one of two literal forms:
+
+```
+none - builds the export screen from scratch
+```
+
+```
+.apm/openspec/feat-recurring-slots/changes
+```
+
+The first says the work creates something new and changes nothing that already exists,
+and the reason after `none - ` names what it builds. The second is the `changes` directory
+of the change, already validated, followed by the baseline's path and the delta itself.
+Backticks around the path are allowed.
+
+**When in doubt, write the delta.** Work that touches a file which already has behaviour -
+code, a document, configuration - changes something existing, however small the edit.
+`none` is a claim that nothing existing changes, not a default. The Worker who receives
+`none` confirms it holds and reports it as a deviation when it does not, rather than
+writing a delta of its own.
+
+The section exists because the rule used to be a condition - "a change to existing work
+carries a delta" - and a condition nothing checks stops being applied. It is now checked
+at dispatch: the hook that guards the Task Bus refuses the write when the decision is
+missing or malformed. That means a prompt with no `## Spec Deltas` heading, a heading with
+nothing under it, `none` with no reason, a first line that is neither form, or a path to a
+directory that does not exist. For an edit to the Task Bus it checks the prompt as the edit
+would leave it. A refused write is reported like this:
+
+```
+APM dispatch gate: the write to .apm/bus/booking-agent/task.md is blocked.
+
+Dispatch target: booking-agent -> Task 2.3
+
+Spec Deltas decision missing or invalid: "none" carries no reason after "none - ".
+  The first non-empty line under "## Spec Deltas" must be one of:
+    none - <why this Task changes no specification>
+    .apm/openspec/<change>/changes (an existing directory, backticks allowed)
+
+Resolve what is named above, then dispatch again. Nothing else is gated: this hook only guards .apm/bus/<agent>/task.md.
+```
+
+The other refusals differ only in the line after `Spec Deltas decision missing or
+invalid:`, which names the defect:
+
+```
+the Task Prompt has no "## Spec Deltas" heading.
+"## Spec Deltas" has no line under it.
+"see the plan" is neither "none - <reason>" nor a .apm/openspec/<change>/changes path.
+.apm/openspec/feat-slot-overlap/changes does not exist as a directory.
+```
+
+The hook checks that the decision is there and well formed, and that the directory exists.
+It does not validate the delta; that is what the command below is for, and it runs before
+the prompt is written.
+
 ## Validating
 
 ```bash
