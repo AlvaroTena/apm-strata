@@ -57,9 +57,10 @@ apm custom -r AlvaroTena/apm-strata
 **That route installs the templates but not the install-time behaviour, and nothing but the
 Manager points out the difference.** Two things this repository's CLI does are absent from the
 published upstream package: it merges the hook declaration into `.claude/settings.json`, and
-it restores the execute bit that extraction strips from the hook scripts. Without both, the
-dispatch gate is never armed - it does not fail, it simply never runs, and the installation
-looks complete. The Manager checks for the declaration and the script when it starts and says
+it restores the execute bit that extraction strips from the hook scripts. The declaration is
+the one that matters: the hook runs its script through `sh`, so the bit does not, but without
+the declaration the dispatch gate is never armed - it does not fail, it simply never runs, and
+the installation looks complete. The Manager checks for the declaration and the script when it starts and says
 what is missing, but it does not stop the session. Use this route to read the templates, not
 to run a session that relies on the gate.
 
