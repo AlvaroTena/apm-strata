@@ -40,7 +40,7 @@ Three documents form a waterfall: Spec (what to build) → Plan (how work is org
 | **Dependency Graph** | Mermaid diagram in the Plan header that visualizes Task dependencies, agent assignments, and execution flow. Enables the Manager to identify batch candidates, parallel dispatch opportunities, and critical path bottlenecks. | Within `.apm/plan.md` |
 | **Checklist** | Requirement quality checklist generated at an approval gate. Each item is a question about the quality of what the document says, never about implementation progress. Reviewer-owned: `[x]` means a human confirmed the criterion, and no agent ever marks a box. | `.apm/checklists/spec.md`, `.apm/checklists/plan.md` |
 
-The APM Rules block is also where a project declares the mechanisms it turns on - its Tracker, knowledge layer consumer, external lenses, ambiguity taxonomy, lens model and delta validator. An undeclared mechanism is inert rather than broken: the step that reads the declaration finds none, says so, and continues.
+The APM Rules block is also where a project declares the mechanisms it turns on - its Tracker, knowledge layer consumer, external lenses, ambiguity taxonomy, lens model and delta validator. An undeclared mechanism is inert rather than broken: the step that reads the declaration finds none, says so, and continues. The Tracker declaration is the exception: the Planner always writes one, and a project that names no other tracker gets the `file` type, which keeps the Backlog in `.apm/backlog.md`.
 
 ---
 
@@ -151,8 +151,8 @@ Memory resides in `.apm/memory/` and captures project history for progress track
 | **Index** | Durable project memory containing Memory notes (persistent observations and patterns) and Stage summaries (appended after each Stage completion). | `.apm/memory/index.md` |
 | **Task Log** | Structured log created by a Worker Session after Task completion. Captures outcome, validation, deliverables, Claims, rule deviations, and flags. | `.apm/memory/stage-<NN>/task-<NN>-<MM>.log.md` |
 | **Handoff Log** | Log created during Handoff containing working context not captured elsewhere. | `.apm/memory/handoffs/<agent>/handoff-<NN>.log.md` |
-| **Deferred Item** | Work a review found, verified, and deliberately did not do. It exists in two places at once: an entry in the project's Tracker declaration, which outlives the session, and a row in the Tracker's Deferred table, which the dispatch gate reads. Announcing a deferral without writing both is a deferral that is lost. | `.apm/backlog.md` by default; `## Deferred` in `.apm/tracker.md` |
-| **Backlog** | The long-horizon list of Deferred Items. It outlives the session because archiving is built to leave it in place while everything around it is snapshotted and cleared. | `.apm/backlog.md` |
+| **Deferred Item** | Work a review found, verified, and deliberately did not do. It exists in two places at once: an entry in the project's Tracker declaration, which outlives the session, and a row in the Tracker's Deferred table, which the dispatch gate reads. Announcing a deferral without writing both is a deferral that is lost. The declared tracker - `.apm/backlog.md` for the default `file` type; `## Deferred` in `.apm/tracker.md` |
+| **Backlog** | The long-horizon list of Deferred Items kept by the default `file` tracker. The Planner declares that tracker and creates the file when writing the Rules; it outlives the session because archiving is built to leave it in place while everything around it is snapshotted and cleared. | `.apm/backlog.md` |
 
 ---
 

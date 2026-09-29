@@ -37,6 +37,15 @@ const CONTRACTS = [
       // literal never appears as plain text on this side.
       { role: 'reads', file: 'hooks/apm-dispatch-gate.sh', match: /\^##\[\[:space:\]\]\+Deferred/ }
     ]
+  },
+  {
+    name: 'tracker declaration heading of the Rules block',
+    literal: '## Tracker',
+    sides: [
+      { role: 'writes', file: 'guides/work-breakdown.md' },
+      { role: 'reads', file: 'guides/context-gathering.md' },
+      { role: 'reads', file: 'guides/task-review.md' }
+    ]
   }
 ];
 
