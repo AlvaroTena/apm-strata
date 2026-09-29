@@ -15,7 +15,7 @@ Paths in this document are written literally. The build skips `_standards/`, so 
 | **Planner** | Gathers requirements and decomposes them into planning documents. Single instance, no Handoff. |
 | **Manager** | Coordinates and orchestrates the Implementation Phase - dispatches Tasks, reviews results through lenses, maintains planning documents and memory. Single role, multiple instances via Handoff. |
 | **Worker** | Executes Tasks assigned by the Manager. One Worker per domain. A Worker is an identity that persists for the whole APM session; its execution is a Worker Session per Task. |
-| **Lens** | A reviewing agent that reads a staged artifact and returns Findings. Lenses do not judge, score, or decide - they report. Five ship with the template; a project may declare more. |
+| **Lens** | A reviewing agent that reads a staged artifact and returns Findings. Lenses do not judge, score, or decide - they report. The Manager spawns them during review, and the Worker Session spawns them once per attempt over its own work before it reports. Five ship with the template; a project may declare more. |
 
 ---
 
@@ -101,7 +101,7 @@ Partial means "I need guidance to continue." Failed means "I could not achieve t
 
 ## 6. Review
 
-The Manager does not read a Task's artifact. It stages the artifact, dispatches Lenses that read it in contexts that die, and triages what they return.
+The Manager does not read a Task's artifact. It stages the artifact, dispatches Lenses that read it in contexts that die, and triages what they return. A Worker's own lens pass reaches the review as testimony in its Task Log's `## Self-Review` section and changes none of this.
 
 | Term | Definition | Location |
 | ------ | ------------ | ---------- |
