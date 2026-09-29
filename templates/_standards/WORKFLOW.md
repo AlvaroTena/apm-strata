@@ -111,8 +111,8 @@ A Worker is a persistent identity and an ephemeral execution. The identity - slu
 **Lifecycle.**
 
 1. *Dispatch.* The Manager writes the Task Prompt to the shared Task Bus, where the dispatch gate checks it, creates the worktree under `.claude/worktrees/` itself, copies into it the installed bundle, the project settings and the Rules file, fills its `.apm/` mailbox from the shared `.apm/`, launches a background session with the same name so the launch opens that worktree, records **both** session identifiers in the Tracker, and sends the trigger.
-2. *Execution.* The session reads the domain's `handoff.md`, validates identity, reads the Task Prompt, branches, works, validates, writes the Task Log, updates `handoff.md` for the next session in the domain, writes the report and triggers the Manager. Everything it reads and writes lies inside its worktree: the platform refuses any file edit that resolves into the main checkout.
-3. *Stop and collect.* On receiving the report the Manager stops the session, which frees resources and keeps the conversation, copies the report, the Task Log, the domain notes and any Handoff Log or delta from the mailbox back to the shared `.apm/`, and only then reads the report. Collection always precedes release, because releasing deletes the mailbox with the worktree.
+2. *Execution.* The session reads the domain's `handoff.md`, validates identity, reads the Task Prompt, branches, works, validates, writes the Task Log, updates `handoff.md` for the next session in the domain, writes the report and triggers the Manager. Everything it reads and writes lies inside its worktree: the platform refuses any file edit that resolves into the main checkout. Before logging it runs the applicable review lenses once over its own diff, fixes what is plainly its own defect, and records every finding and its outcome in the Task Log's `## Self-Review` section; it assigns no verdicts.
+3. *Stop and collect.* On receiving the report the Manager stops the session, which frees resources and keeps the conversation, copies the report to `.apm/review/<stage>-<task>/report.md` and the Task Log, the domain notes and any Handoff Log or delta back to the shared `.apm/`, and only then reads the report from its per-Task path. Reports never pass through the shared Report Bus, so two sessions of one domain cannot overwrite each other's. Collection always precedes release, because releasing deletes the mailbox with the worktree.
 4. *Review.* Per §9.3. A follow-up resumes the same session, which retains its context, and repeats until the review closes.
 5. *Release.* The Manager merges from the main checkout and releases the session and its worktree.
 
@@ -153,6 +153,8 @@ The Message Bus is a file-based mechanism in `.apm/bus/`. The Planner initialize
 | Task Bus | `task.md` | Manager → Worker | Task Prompts (single or batched) |
 | Report Bus | `report.md` | Worker → Manager | Task Reports |
 | Handoff Bus | `handoff.md` | Outgoing → incoming agent | Handoff prompt content |
+
+For a Worker Session the Report Bus is the one in its mailbox; the Manager collects each report to the Task's review directory, and the shared Report Bus carries reports from non-APM agents only.
 
 A bus file is either empty or holds a message awaiting delivery. Before writing an outgoing file, an agent clears its incoming one. Agents read a bus file before writing it.
 
@@ -296,7 +298,7 @@ The session binds to its identity by resolving the agent identifier against `.ap
 
 **Runtime:** `guides/task-review.md`, `skills/apm.review/SKILL.md`, `skills/apm.manage/references/review-procedure.md`, `skills/apm.manage/references/external-lenses.md`, `skills/apm.manage/references/finding.schema.json`, `agents/apm-lens-*.md`
 
-**The Manager does not read the artifact.** It stages the artifact, dispatches lenses that read it in contexts that die, and triages what they return. The expensive reading happens where its context is disposable.
+**The Manager does not read the artifact.** The Worker's self-review reaches the review inside the Task Log as the author's testimony; the Manager still stages, runs the lenses and triages as if it had not happened. It stages the artifact, dispatches lenses that read it in contexts that die, and triages what they return. The expensive reading happens where its context is disposable.
 
 **Staging** - The Manager writes `.apm/review/<stage>-<task>/`: the diff or the deliverable document, the Worker's Task Log as its claims, the acceptance criteria from the Task Prompt, and context paths including the justification table when one exists. Lenses receive paths, never text.
 
@@ -343,7 +345,7 @@ The result is written to `triage.md`, one row per finding, carrying `id`, `lens`
 
 **No checklists is a pass.** The gate enforces an unfinished review, not the absence of a review artifact. A project that never generates a checklist is never blocked by one - the same principle as an undeclared mechanism.
 
-**A gate does not own its rule.** It shortens a feedback loop. The conditions hold whether or not it fires, so a passing write means no block was raised, not that the conditions were checked.
+**A gate does not own its rule.** It shortens a feedback loop. The conditions hold whether or not it fires, so a passing write means no block was raised, not that the conditions were checked. Because an undeclared or uninstalled gate fails silently, the Manager checks at initiation that the settings file declares it and that its script exists, and tells the User when either is missing; it cannot observe whether the running session registered the hook.
 
 **Pre-compaction.** A second hook leaves a reminder to run recovery once the context window has been compacted. It never blocks.
 
