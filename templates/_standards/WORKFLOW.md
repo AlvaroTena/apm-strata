@@ -382,6 +382,8 @@ A Task whose work modifies something that already exists carries its change as a
 
 Deltas are validated by a declared command, run by the Manager when it builds the Task Prompt and by the Worker Session before it reports.
 
+A MODIFIED or REMOVED block needs a baseline to match against, and nothing creates one ahead of time. The Manager writes it from the current code on the base branch, limited to the requirements the delta names, in a root of its own per change under `.apm/openspec/<change>/`. A per-change root keeps concurrent changes to the same capability from overwriting each other's baseline. The Worker Session never rewrites the baseline, and the whole root is deleted when the change merges, so no stale baseline waits for the next Task.
+
 ---
 
 ## 13. Handoff and Continuity

@@ -198,7 +198,7 @@ These concepts are not formal capitalized terms but are clearly defined because 
 
 **Understanding summary.** A consolidated presentation of gathered context for User review and approval. The Planner presents one at the end of Context Gathering; the Manager presents one during first initiation. Both are approval gates.
 
-**Delta specification.** A Task that changes something already existing carries its change as ADDED, MODIFIED and REMOVED requirement blocks rather than prose. MODIFIED replaces a requirement whole, so omitting one of its existing scenarios deletes that scenario.
+**Delta specification.** A Task that changes something already existing carries its change as ADDED, MODIFIED and REMOVED requirement blocks rather than prose. MODIFIED replaces a requirement whole, so omitting one of its existing scenarios deletes that scenario. The baseline it is checked against is written per change from the current code and deleted when the change merges.
 
 ---
 
