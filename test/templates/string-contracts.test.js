@@ -39,6 +39,14 @@ const CONTRACTS = [
     ]
   },
   {
+    name: 'spec deltas section of the Task Prompt',
+    literal: '## Spec Deltas',
+    sides: [
+      { role: 'writes', file: 'guides/task-assignment.md' },
+      { role: 'reads', file: 'guides/task-execution.md' }
+    ]
+  },
+  {
     name: 'tracker declaration heading of the Rules block',
     literal: '## Tracker',
     sides: [
