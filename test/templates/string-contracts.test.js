@@ -50,6 +50,15 @@ const CONTRACTS = [
     ]
   },
   {
+    name: 'self-review section of the Task Log',
+    literal: '## Self-Review',
+    sides: [
+      { role: 'writes', file: 'guides/task-logging.md' },
+      { role: 'specifies', file: 'guides/task-execution.md' },
+      { role: 'reads', file: 'guides/task-review.md' }
+    ]
+  },
+  {
     name: 'tracker declaration heading of the Rules block',
     literal: '## Tracker',
     sides: [
