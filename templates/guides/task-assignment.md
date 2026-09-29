@@ -95,11 +95,16 @@ Bus directories and files are created by the Planner during the Planning Phase -
 
 ### 2.7 Non-APM Agent Dispatch
 
-When a non-APM agent has joined the session and you need to assign follow-up work to it, write a plain assignment to its Task Bus - not a full Task Prompt. Include what to do and what to produce, and instruct it to report back. Do not include log paths, logging instructions, or Handoff metadata - non-APM agents do not log to Memory or participate in Worker tracking.
+When a non-APM agent has joined the session and you need to assign follow-up work to it, write a plain assignment to its Task Bus - not a full Task Prompt. Include what to do and what to produce, and instruct it to report back. The dispatch gate guards every Task Bus, so the assignment still carries a `## Spec Deltas` section per §2.8 Spec Delta Standards - `none - <reason>` or the validated delta directory - or the gate refuses a legitimate assignment. Do not include log paths, logging instructions, or Handoff metadata - non-APM agents do not log to Memory or participate in Worker tracking.
 
 ### 2.8 Spec Delta Standards
 
-A Task whose work changes something that already exists carries a delta section in its prompt, stating that change against the spec it touches. A Task building something new from nothing does not need one. The delta and the baseline spec it is checked against are files you write before the prompt; the prompt's section gives both paths and repeats the delta.
+Every Task Prompt carries a section headed `## Spec Deltas`. The section always exists; what the Task decides is its content. Its first non-empty line takes one of two literal forms:
+
+- `none - <reason>` when the Task builds something new from nothing. The reason says what it builds and is never empty.
+- `.apm/openspec/<change>/changes`, the directory you validated, when the Task changes something that already exists - code, a document, configuration. That directory exists in the shared `.apm/` before you write the Task Bus. The rest of the section gives the baseline's path and repeats the delta.
+
+**When in doubt, write the delta.** A Task that touches a file which already has behaviour changes something existing, however small the edit. `none` is a claim that nothing existing changes, not a default: the dispatch gate refuses a Task Bus write whose prompt lacks the heading, whose `none - ` carries no reason, or whose directory does not exist. The delta and the baseline it is checked against are files you write before the prompt.
 
 **Layout.** Each change owns one directory under `.apm/openspec/`, holding its baseline and its delta:
 
@@ -182,9 +187,12 @@ Assemble the Task Prompt and deliver via the Message Bus.
 
 Perform the following actions:
 1. Construct YAML frontmatter per §4.1 Task Prompt Format.
-2. Construct prompt body: Task Reference, Context from Dependencies (if applicable), Objective, Detailed Instructions, Spec Deltas (if the Task changes existing work), Workspace, Expected Output, Validation Criteria, Instruction Accuracy, Task Iteration, Task Logging instructions, Reporting Instructions.
-3. Name the Task branch per the convention in the Tracker and state it, with the base branch, in the Workspace section. The Worker cuts it inside its worktree; you do not create it here.
-4. If the Task changes anything that already exists, construct its delta section per §2.8 Spec Delta Standards: name the change and each capability, write any missing baseline from the base branch, write the delta, and validate the change's `changes` directory. Fix what the validator reports before going further.
+2. Name the Task branch per the convention in the Tracker. The Worker cuts it inside its worktree; you do not create it here.
+3. Decide whether the Task changes anything that already exists - code, a document, configuration - and write the `## Spec Deltas` section per §2.8 Spec Delta Standards:
+   - If it does, name the change from the branch and each capability, write any missing baseline from the base branch, write the delta, and validate the change's `changes` directory. Fix what the validator reports before going further. The validated directory is the section's first line.
+   - If it does not, write `none - <reason>`, naming what the Task builds from nothing.
+   - If you cannot tell, it changes something: write the delta.
+4. Construct prompt body: Task Reference, Context from Dependencies (if applicable), Objective, Spec Deltas, Detailed Instructions, Workspace (with the branch and its base branch), Expected Output, Validation Criteria, Instruction Accuracy, Task Iteration, Task Logging instructions, Reporting Instructions.
 5. Clear the incoming Report Bus per §2.6 Delivery Standards.
 6. Read the Worker's Task Bus, then write the Task Prompt to it: `.apm/bus/<agent-slug>/task.md`.
 7. From the Task's repository directory, create the worktree per §2.5 Version Control Standards:
@@ -213,11 +221,12 @@ Perform the following actions:
 1. Capture follow-up context: what went wrong, investigation findings, required refinement, any planning document modifications.
 2. If planning documents were modified, extract relevant updated content per §3.2 Per-Task Analysis.
 3. Refine all content sections per §2.3 Follow-Up Standards. Include a follow-up context section explaining the issue and required refinement.
-4. Construct the follow-up prompt per §4.2 Follow-Up Format. Same `log_path` as the original.
-5. Clear the incoming Report Bus per §2.6 Delivery Standards, in the shared `.apm/` and in the session's mailbox.
-6. Read the Worker's Task Bus, then write to it: `.apm/bus/<agent-slug>/task.md`. Copy it into the session's mailbox before resuming, together with anything new the follow-up cites, per `{SKILL_PATH:apm-communication}` §4.5 Worktree Mailbox. The rest of the mailbox is the session's own working state from the first attempt: leave it.
-7. Confirm the session no longer appears in `claude agents --json`, then resume it in the background from the Task's repository directory using the full session id from its Task row, with no other flags - the session keeps the options it was launched with, and flags passed on the resume start a copy. Confirm it came back under the same id instead of as a copy. A copy means the short id was used, flags were passed, or the session had not finished stopping: a stop returns before the session has exited.
-8. Send the fixed trigger text to the session by name per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages. The session keeps the execution context of its first attempt, so the follow-up addresses what changed rather than restating what the session already did.
+4. Write the follow-up's `## Spec Deltas` section per §2.8 Spec Delta Standards. When the change is the same, keep the baseline it started with, update the delta to what the follow-up now asks for, and validate it again. When the original said `none - <reason>`, it still holds while the follow-up only reshapes what the first attempt built on its unmerged branch. A follow-up that now touches something that existed on the base branch changes existing work: write the delta per §3.3 Task Prompt Construction.
+5. Construct the follow-up prompt per §4.2 Follow-Up Format. Same `log_path` as the original.
+6. Clear the incoming Report Bus per §2.6 Delivery Standards, in the shared `.apm/` and in the session's mailbox.
+7. Read the Worker's Task Bus, then write to it: `.apm/bus/<agent-slug>/task.md`. Copy it into the session's mailbox before resuming, together with anything new the follow-up cites, per `{SKILL_PATH:apm-communication}` §4.5 Worktree Mailbox. The rest of the mailbox is the session's own working state from the first attempt: leave it.
+8. Confirm the session no longer appears in `claude agents --json`, then resume it in the background from the Task's repository directory using the full session id from its Task row, with no other flags - the session keeps the options it was launched with, and flags passed on the resume start a copy. Confirm it came back under the same id instead of as a copy. A copy means the short id was used, flags were passed, or the session had not finished stopping: a stop returns before the session has exited.
+9. Send the fixed trigger text to the session by name per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages. The session keeps the execution context of its first attempt, so the follow-up addresses what changed rather than restating what the session already did.
 
 ---
 
@@ -225,7 +234,7 @@ Perform the following actions:
 
 ### 4.1 Task Prompt Format
 
-Task Prompts are markdown files. Adapt based on Task needs - not all sections are required for every Task.
+Task Prompts are markdown files. Adapt based on Task needs - not all sections are required for every Task, except Spec Deltas, which every prompt carries.
 
 **YAML Frontmatter Schema:**
 ```yaml
@@ -251,7 +260,11 @@ has_dependencies: true
 - *Context from Dependencies.* Included when `has_dependencies: true`. One form for every dependency per §2.1 Dependency Context Standards: an intro naming what this Task depends on - `**Integration Steps:**` numbered file reading instructions - `**Producer Output Summary:**` key features, files, interfaces, constraints - `**Upstream Context:**` for relevant ancestors. Say which Worker produced the work when it helps the reader locate it, and write the same depth either way.
 - *Objective:* Single-sentence Task goal, optionally enhanced with coordination-level context.
 - *Detailed Instructions:* Plan steps transformed into actionable instructions with integrated Spec content and guidance.
-- *Spec Deltas.* Included when the Task changes something that already exists, per §2.8 Spec Delta Standards: the delta's path, its baseline's path, the directory to validate, and the delta itself. Omitted entirely for new work - an empty delta section is worse than none, because it reads as a change that was never stated.
+- *Spec Deltas.* Required in every prompt, headed `## Spec Deltas`, placed before the detailed instructions so the Worker knows whether it is changing existing behaviour before it starts. Its first non-empty line is one of the two literal forms in §2.8 Spec Delta Standards:
+  - `none - <reason>`, the reason naming what the Task builds from nothing.
+  - `.apm/openspec/<change>/changes`, followed by the baseline's path and the delta itself.
+
+  A missing heading, an empty reason, or a directory that does not exist is refused by the dispatch gate. An empty section is an unfinished prompt, not a Task without deltas.
 - *Workspace:* The worktree path, the Task branch to cut, and the base branch to cut it from. The Worker works and commits in the worktree and notes it in the Task Log. `.apm/` paths resolve to the session's mailbox inside the worktree, which you fill before the launch and collect when the report arrives. Workers do not merge.
 - *Expected Output:* Deliverables from Plan Output field.
 - *Validation Criteria:* From Plan Validation field.
@@ -267,6 +280,7 @@ Follow-up Task Prompts use the same structure as §4.1 Task Prompt Format with t
 - *Follow-up context section* after Task Reference - previous issue, investigation findings, required refinement, additional guidance.
 - *All content sections* refined based on what went wrong, not copied from the previous attempt.
 - *Same `log_path`* as the original Task Prompt.
+- *Spec Deltas* present as in every prompt, carrying the same change directory when the change is the same.
 
 ### 4.3 Branch and Worktree Standards
 
