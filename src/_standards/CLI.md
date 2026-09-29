@@ -423,13 +423,33 @@ Everything else under `.apm/` is session state and is meant to be archived and
 cleared. A new artifact only belongs on these lists if the next session has to
 read it.
 
+`apm archive` also deletes the installed files, hook scripts included, so it
+withdraws APM's hook declarations from the project settings as well; see
+Project Settings below.
+
 ### Project Settings
 
 Installation declares APM's hooks in the project's `.claude/settings.json`
 through `services/settings.js`, from every path that installs or reinstalls a
-bundle: `init`, `custom`, `add` and `update`. `remove` withdraws them once the
-last assistant is gone, because the hook scripts live in an assistant's config
-directory and the declarations would otherwise outlive them.
+bundle: `init`, `custom`, `add` and `update`. Every path that deletes the hook
+scripts withdraws the declarations with them, because a declaration that
+outlives its script fires on every matching event and fails:
+
+- `remove`, once the last assistant is gone, since the scripts live in an
+  assistant's config directory.
+- `archive`, which deletes every installed file. It withdraws before it
+  snapshots or deletes anything, because withdrawal is the step that can
+  refuse: an unreadable settings file stops the archive with nothing changed.
+- `update`, when every bundle was skipped and nothing reinstalled the scripts.
+  Otherwise it reinstalls, and the in-place merge leaves each entry declared
+  once and in the position it already had.
+
+`archive --delete` and `archive --clear` only touch `.apm/archives/` and leave
+the settings alone.
+
+The settings file is often versioned with the project. When `archive` changes
+it, the command says so in one line of output, so the user does not find out
+from `git status`.
 
 **That file belongs to the user. Merge into it; never write over it.** A
 project may already carry its own hooks on the same events, its permissions,

@@ -13,6 +13,7 @@ import { CLIError } from '../core/errors.js';
 import { readMetadata, getInstalledFiles } from '../core/metadata.js';
 import { createArchive, listArchivesWithInfo, removeArchive, clearArchives, generateArchiveName } from '../services/archive.js';
 import { removeInstalledFiles } from '../services/cleanup.js';
+import { removeApmHooks, SETTINGS_FILE } from '../services/settings.js';
 import { confirmDestructiveAction } from '../ui/prompts.js';
 import logger from '../ui/logger.js';
 
@@ -156,6 +157,12 @@ async function createMode(force, archiveName) {
       return;
     }
   }
+  // The hook scripts are about to go with the installed files, so their
+  // declarations go too. This runs first because it is the step that can
+  // refuse: an unreadable settings file stops the archive before anything
+  // has been moved or deleted.
+  const hooksWithdrawn = await removeApmHooks(cwd);
+
   const { archivePath } = await createArchive(cwd, archiveOpts);
 
   // Clean tracked files
@@ -169,6 +176,11 @@ async function createMode(force, archiveName) {
   // Clear content for final output
   logger.clearAndBanner();
   logger.success(`Archived to ${path.relative(cwd, archivePath)}`);
+  // The settings file is often versioned, so say it changed rather than let
+  // the user find out from git status.
+  if (hooksWithdrawn) {
+    logger.info(`Removed APM hook declarations from ${SETTINGS_FILE}.`);
+  }
   logger.info('Run "apm init" to reinitialize.');
 }
 
