@@ -122,6 +122,88 @@ Two things an existing installation does not get on its own.
   it runs, deleting the duplicate, so this resolves itself - but until it does, an agent
   started against the old file finds no block.
 
+## [1.1.0-alpha.2] - Unreleased
+
+The second pre-release of 1.1.0. It lists only what changed since `v1.1.0-alpha.1`, which
+shipped what the `[1.1.0]` entry above describes. That entry stays the description of the
+fork as a whole and is not dated until the stable release.
+
+### Fixed
+
+* **Planning declares a tracker when the project names none.** It writes a `## Tracker`
+  block of type `file`, with `query` and `create` commands over `.apm/backlog.md`, and
+  creates that file when it is missing, leaving an existing one untouched. The templates
+  used to promise a default backlog that nothing declared or created, so reading deferred
+  work, deferring a review finding and querying the backlog had no command to run.
+
+* **A spec delta gets the baseline it is checked against.** When a change to existing work
+  has no baseline, one is written from the current code before the delta, covering only
+  the requirements its `MODIFIED` and `REMOVED` blocks name. Nothing used to create
+  `.apm/openspec/`, so deltas were never written.
+
+* **Each change keeps its baseline and delta in its own directory,**
+  `.apm/openspec/<change>/`, named after the branch with `/` replaced by `-`. The
+  directory is validated at its `changes` subdirectory, never rewritten by the person doing
+  the change, and deleted when the branch is merged. A shared root let two concurrent
+  changes to the same capability overwrite each other's baseline.
+
+* **A Worker's worktree gets copies of the installed bundle, the settings files and the
+  Rules file before the session starts.** The entries come from `installedFiles` in
+  `.apm/metadata.json`. The bundle is git-ignored, so a session launched in its own
+  worktree could not see it and failed with `Unknown skill`. The files are copies and not
+  links, because through a link each read asked for a permission and a background session
+  stalled waiting for it.
+
+* **A Worker's worktree gets a real `.apm/` mailbox instead of a link to the shared one.**
+  From Claude Code 2.1.284, a session isolated in its worktree cannot write into the main
+  checkout, a link included, so a Worker behind the link could not write its log or its
+  report. The mailbox keeps the same relative paths. It is filled when the work is
+  dispatched and collected when the report arrives, always before the session is released,
+  and the shared `.apm/` stays the source of truth.
+
+* **Releasing a Worker session no longer needs `--force`.** The copies and the mailbox are
+  excluded from git, so the worktree stays clean and `claude rm` releases it. The force
+  was covering an untracked file in the worktree.
+
+* **A `.apm/` entry with a trailing slash in `.gitignore` no longer blocks anything.** The
+  rule only mattered for the link, which is gone.
+
+* **`apm archive` withdraws the hook declarations from `.claude/settings.json`.** It used
+  to delete the hook scripts and leave the declarations pointing at files that no longer
+  existed. The withdrawal runs before anything else is touched, and the output says the
+  file changed.
+
+* **`apm update` withdraws the hook declarations when it reinstalls no bundle,** for the
+  same reason.
+
+* **`npm test` no longer writes a real `.claude/settings.json` into the repository.** A
+  test of `apm init` did.
+
+### Changed
+
+* **`apm archive` refuses to run when `.claude/settings.json` is not valid JSON,** and
+  changes nothing when it refuses.
+
+* **The Manager's guide names two traps in resuming a session:** `claude stop` returns
+  before the session has exited, and resuming with flags starts a copy instead of the
+  session.
+
+* **The default tracker's `create` command places the title and origin inside a shell
+  string and a table row,** so neither may contain `|`, double quotes, `$`, backticks or
+  backslashes.
+
+### Upgrade Notes
+
+* **Reinstall to get the new guides.** An existing installation keeps the guides it was
+  installed with until you run `apm update` or reinstall.
+
+* **A Manager still on the previous guide links `.apm` into each Worker's worktree.** On
+  Claude Code 2.1.284 or later those Workers cannot write their log or their report.
+  Update before dispatching again.
+
+* **Archiving can now refuse.** If `.claude/settings.json` is not valid JSON, `apm archive`
+  stops before moving or deleting anything. Fix the file and archive again.
+
 ## [1.0.2] - Unreleased
 
 ### Breaking Changes
