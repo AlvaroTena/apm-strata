@@ -43,7 +43,10 @@ const CONTRACTS = [
     literal: '## Spec Deltas',
     sides: [
       { role: 'writes', file: 'guides/task-assignment.md' },
-      { role: 'reads', file: 'guides/task-execution.md' }
+      { role: 'reads', file: 'guides/task-execution.md' },
+      // The gate finds the heading with an awk regular expression; the plain
+      // text also appears in its comments and messages, so match the pattern.
+      { role: 'reads', file: 'hooks/apm-dispatch-gate.sh', match: /\^## Spec Deltas\[\[:space:\]\]\*\$/ }
     ]
   },
   {

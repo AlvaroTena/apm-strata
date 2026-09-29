@@ -274,7 +274,7 @@ The Manager assesses readiness, constructs Task Prompts, launches sessions, and 
 
 Isolation is a property of the model rather than a precondition to arrange: every session has its own worktree.
 
-**Per-Task analysis** - The Manager synthesizes dependency context, relevant Spec content extracted inline, and Plan Task fields into a self-contained Task Prompt. Rules are not included - every agent reads the block directly. Content in the codebase is referenced by targeted reading instructions rather than embedded. A Task that modifies something already existing carries its change as a delta per §12.
+**Per-Task analysis** - The Manager synthesizes dependency context, relevant Spec content extracted inline, and Plan Task fields into a self-contained Task Prompt. Rules are not included - every agent reads the block directly. Content in the codebase is referenced by targeted reading instructions rather than embedded. Every Task Prompt decides its deltas explicitly in a `## Spec Deltas` section per §12.
 
 **Task Prompt construction** - Metadata plus objective, dependency context, instructions, expected output, validation criteria, instruction accuracy guidance, iteration guidance, logging and reporting instructions, and the workspace the session operates in.
 
@@ -337,7 +337,7 @@ The result is written to `triage.md`, one row per finding, carrying `id`, `lens`
 
 **Checklists.** At the Spec and Plan approval gates the Planner writes a requirement quality checklist of five to eight items, each a question about the quality of what the document says, carrying its dimension and the section it points at. `[x]` means a human confirmed the criterion, never that implementation is done, and no agent marks a box - an agent marking its own work removes the only signal the checklist carries.
 
-**The dispatch gate.** A `PreToolUse` hook on write operations refuses a write to a Task Bus file while a checklist has an unmarked box, or while an open deferred item names the Task being dispatched as blocked. It exits non-zero to block and its stderr becomes the reason, so every refusal names the specific item. Nothing else is gated.
+**The dispatch gate.** A `PreToolUse` hook on write operations refuses a write to a Task Bus file while a checklist has an unmarked box, while an open deferred item names the Task being dispatched as blocked, or while the Task Prompt has no valid `## Spec Deltas` decision. It exits non-zero to block and its stderr becomes the reason, so every refusal names the specific item. Nothing else is gated.
 
 **Where hooks are declared.** In the project's settings file, installed by the CLI - never in a skill's frontmatter. Frontmatter registration happens when the skill is invoked and lives in the process, so a session resumed into a new process would carry no gate until something reinvoked the skill, which is exactly what a resuming coordinator does not do. A gate that disarms without saying so is worse than no gate. The consequence accepted is that the hook is project-scoped rather than role-scoped, which is harmless: it only guards a file that only a coordinator writes.
 
@@ -380,7 +380,7 @@ The four steps that make it work:
 
 **Runtime:** `guides/task-assignment.md`, `guides/task-execution.md`
 
-A Task whose work modifies something that already exists carries its change as a delta rather than prose: ADDED, MODIFIED and REMOVED requirement blocks, each requirement carrying `SHALL` or `MUST` and its scenarios. The requirement name is the key and is case-sensitive. MODIFIED replaces a requirement whole, so omitting one of its existing scenarios deletes that scenario - the most common way to lose behavior silently. Work built from nothing needs no delta.
+Every Task Prompt carries a `## Spec Deltas` section, and its first non-empty line records the decision: `none - <reason>` for work built from nothing, or the validated `.apm/openspec/<change>/changes` directory for a Task that modifies something that already exists. A delta states that change as ADDED, MODIFIED and REMOVED requirement blocks rather than prose, each requirement carrying `SHALL` or `MUST` and its scenarios. The requirement name is the key and is case-sensitive. MODIFIED replaces a requirement whole, so omitting one of its existing scenarios deletes that scenario - the most common way to lose behavior silently. When in doubt the Manager writes the delta, and the dispatch gate refuses a Task Bus write whose prompt lacks the section, gives `none` without a reason, or names a directory that does not exist.
 
 Deltas are validated by a declared command, run by the Manager when it builds the Task Prompt and by the Worker Session before it reports.
 

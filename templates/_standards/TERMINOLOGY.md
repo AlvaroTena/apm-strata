@@ -182,7 +182,7 @@ These concepts are not formal capitalized terms but are clearly defined because 
 
 **Domain rooting.** A worktree belongs to one repository, so a Worker's domain maps to one repository. A domain that would span two repositories in a multi-repository workspace is split into one Worker per repository - there is no worktree in which the unsplit domain could run.
 
-**Gates.** A gate stops work until a condition holds. Human gates are approval points: Spec, Plan and Rules approval, the dispatch plan for each Stage, the justification table, and the Checklist markers. The mechanical gate is the dispatch hook, which refuses a write to a Task Bus file while a Checklist has an unmarked box or an open Deferred Item names the Task being dispatched. A gate that blocks without naming what blocked it is worse than no gate, so every refusal names the item.
+**Gates.** A gate stops work until a condition holds. Human gates are approval points: Spec, Plan and Rules approval, the dispatch plan for each Stage, the justification table, and the Checklist markers. The mechanical gate is the dispatch hook, which refuses a write to a Task Bus file while a Checklist has an unmarked box, an open Deferred Item names the Task being dispatched, or the Task Prompt has no valid `## Spec Deltas` decision. A gate that blocks without naming what blocked it is worse than no gate, so every refusal names the item.
 
 **Justification table.** An agent may do something a rule in the APM Rules block forbids, provided it first writes what was violated, why it was necessary, and which simpler alternative was rejected and why. A Worker writes it in its Task Log, where the review reads it; the Manager writes it in the Tracker's working notes, where an incoming Manager reads it.
 
@@ -198,7 +198,7 @@ These concepts are not formal capitalized terms but are clearly defined because 
 
 **Understanding summary.** A consolidated presentation of gathered context for User review and approval. The Planner presents one at the end of Context Gathering; the Manager presents one during first initiation. Both are approval gates.
 
-**Delta specification.** A Task that changes something already existing carries its change as ADDED, MODIFIED and REMOVED requirement blocks rather than prose. MODIFIED replaces a requirement whole, so omitting one of its existing scenarios deletes that scenario. The baseline it is checked against is written per change from the current code and deleted when the change merges.
+**Delta specification.** A Task that changes something already existing carries its change as ADDED, MODIFIED and REMOVED requirement blocks rather than prose. MODIFIED replaces a requirement whole, so omitting one of its existing scenarios deletes that scenario. The baseline it is checked against is written per change from the current code and deleted when the change merges. Every Task Prompt records whether it carries one in a `## Spec Deltas` section, with `none - <reason>` when it does not.
 
 ---
 
