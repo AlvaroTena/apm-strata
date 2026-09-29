@@ -93,7 +93,23 @@ When a non-APM agent has joined the session and you need to assign follow-up wor
 
 ### 2.8 Spec Delta Standards
 
-A Task whose work changes something that already exists carries a delta section in its prompt, stating that change against the spec it touches. A Task building something new from nothing does not need one.
+A Task whose work changes something that already exists carries a delta section in its prompt, stating that change against the spec it touches. A Task building something new from nothing does not need one. The delta and the baseline spec it is checked against are files you write before the prompt; the prompt's section gives both paths and repeats the delta.
+
+**Layout.** Each change owns one directory under `.apm/openspec/`, holding its baseline and its delta:
+
+```text
+.apm/openspec/<change>/
+  specs/<capability>/spec.md                    <- baseline: what is true today
+  changes/<change>/specs/<capability>/spec.md   <- delta: what this change does to it
+```
+
+Nothing creates `.apm/openspec/` in advance - the first Task that carries a delta creates it. The validator pairs a delta with the baseline by mirroring the path around the last `changes` segment, so the two halves stay inside the change's directory and no other change reads them.
+
+**Naming.** `<change>` is the Task branch name with each `/` replaced by `-` - `fix/slot-overlap` becomes `fix-slot-overlap` - so it is unique while the branch lives, and the Worker derives it from its own Workspace section. `<capability>` is the kebab-case stem of the file, module or command whose behaviour the requirements describe - `src/booking/slots.js` gives `slots`. One subdirectory per capability the change touches, with the same name under both halves.
+
+**Baseline.** Write it before the delta whenever the delta modifies or removes a requirement and `.apm/openspec/<change>/specs/<capability>/spec.md` does not exist yet. It describes the current behaviour of what the change touches, not the project: exactly the requirements the delta's `MODIFIED` and `REMOVED` blocks name, and no others. Read each one from the code or document on the base branch in the repository, not from memory and not from the Spec - the baseline states what is true now, the Spec what was intended. Give each requirement `SHALL` or `MUST` and every scenario the code currently handles, under `#### Scenario:` headings. The validator checks the delta, not the baseline: a baseline scenario at the wrong depth is not counted, and the completeness rule then misses a delta that drops it. A delta with only `ADDED` blocks needs no baseline. When the touched behaviour takes more than five requirements to describe, the Task changes too much for one delta - raise it as a plan change rather than writing a longer baseline. A follow-up keeps the baseline its change started with.
+
+**After merge.** The baseline belongs to its change and goes with it: once the Task branch is merged, delete `.apm/openspec/<change>/` whole. Do not fold the delta into the baseline or keep the baseline for the next change - after the merge it describes code that no longer exists, and the next change writes its own from the code it touches. A directory left behind by a merged change is clutter, not a hazard, because nothing outside the change reads it.
 
 **Format.** Literal - the headings are the contract, not decoration:
 
@@ -122,11 +138,9 @@ The system SHALL <behaviour>
 - Every requirement states `SHALL` or `MUST`.
 - **`MODIFIED` replaces the whole block.** Copy the requirement complete, with every scenario it already has. Omitting an existing scenario is an error, not an abbreviation - this rule is the only thing standing between a routine edit and quietly deleting a scenario nobody meant to touch.
 
-**Validation.** Validate the delta before writing the prompt, using the command the project declares under `## Deltas` in `{RULES_FILE}`. When no such block is declared, use `apm delta validate <path>`. Take the command from the declaration rather than writing it into the procedure: what the procedure requires is that the delta validate clean, and a project that swaps the tool then changes one line and nothing else. A delta that fails is fixed before dispatch - never dispatched with a note about it.
+**Validation.** Validate the delta before writing the prompt, using the command the project declares under `## Deltas` in `{RULES_FILE}`. When no such block is declared, use `apm delta validate .apm/openspec/<change>/changes`. Point it at the `changes` directory, never at the change directory or `.apm/openspec/`: the validator checks every `spec.md` below the path it is given, reads a baseline as a delta with no operation group, and fails it. Take the command from the declaration rather than writing it into the procedure: what the procedure requires is that the delta validate clean, and a project that swaps the tool then changes one line and nothing else. A delta that fails is fixed before dispatch - never dispatched with a note about it.
 
 A delta that passes matching but names a requirement that does not exist is the failure this guards against. It reports clean in some tools while the change lands on nothing, so treat an unexpected clean result on a `MODIFIED` block as a reason to confirm the key by eye against the spec.
-
-In a project using this fork, spec directories live under `.apm/openspec/`.
 
 ---
 
@@ -164,7 +178,7 @@ Perform the following actions:
 1. Construct YAML frontmatter per §4.1 Task Prompt Format.
 2. Construct prompt body: Task Reference, Context from Dependencies (if applicable), Objective, Detailed Instructions, Spec Deltas (if the Task changes existing work), Workspace, Expected Output, Validation Criteria, Instruction Accuracy, Task Iteration, Task Logging instructions, Reporting Instructions.
 3. Name the Task branch per the convention in the Tracker and state it, with the base branch, in the Workspace section. The Worker cuts it inside its worktree; you do not create it here.
-4. If the Task changes anything that already exists, construct its delta section and validate it per §2.8 Spec Delta Standards. Fix what the validator reports before going further.
+4. If the Task changes anything that already exists, construct its delta section per §2.8 Spec Delta Standards: name the change and each capability, write any missing baseline from the base branch, write the delta, and validate the change's `changes` directory. Fix what the validator reports before going further.
 5. Clear the incoming Report Bus per §2.6 Delivery Standards.
 6. Read the Worker's Task Bus, then write the Task Prompt to it: `.apm/bus/<agent-slug>/task.md`.
 7. Launch the session from the Task's repository directory:
@@ -225,7 +239,7 @@ has_dependencies: true
 - *Context from Dependencies.* Included when `has_dependencies: true`. One form for every dependency per §2.1 Dependency Context Standards: an intro naming what this Task depends on - `**Integration Steps:**` numbered file reading instructions - `**Producer Output Summary:**` key features, files, interfaces, constraints - `**Upstream Context:**` for relevant ancestors. Say which Worker produced the work when it helps the reader locate it, and write the same depth either way.
 - *Objective:* Single-sentence Task goal, optionally enhanced with coordination-level context.
 - *Detailed Instructions:* Plan steps transformed into actionable instructions with integrated Spec content and guidance.
-- *Spec Deltas.* Included when the Task changes something that already exists, per §2.8 Spec Delta Standards. Omitted entirely for new work - an empty delta section is worse than none, because it reads as a change that was never stated.
+- *Spec Deltas.* Included when the Task changes something that already exists, per §2.8 Spec Delta Standards: the delta's path, its baseline's path, the directory to validate, and the delta itself. Omitted entirely for new work - an empty delta section is worse than none, because it reads as a change that was never stated.
 - *Workspace:* The worktree path, the Task branch to cut, and the base branch to cut it from. The Worker works and commits in the worktree and notes it in the Task Log. `.apm/` paths resolve through the link in the worktree to the one shared copy. Workers do not merge.
 - *Expected Output:* Deliverables from Plan Output field.
 - *Validation Criteria:* From Plan Validation field.
