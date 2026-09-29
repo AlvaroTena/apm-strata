@@ -59,6 +59,13 @@ vi.mock('../../src/services/extractor.js', () => ({
   default: { downloadAndExtract }
 }));
 
+// Declaring hooks writes the settings file under the working directory, which
+// here is the repository itself.
+vi.mock('../../src/services/settings.js', () => {
+  const installApmHooks = vi.fn();
+  return { installApmHooks, default: { installApmHooks } };
+});
+
 const { initCommand } = await import('../../src/commands/init.js');
 
 /**
