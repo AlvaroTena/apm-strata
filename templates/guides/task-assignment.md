@@ -73,9 +73,15 @@ Every Task works in its own worktree, and you coordinate all merges during Task 
 
 **Branch standards:** Every Task gets its own branch off the base branch per the branch convention in the Tracker, cut by the Worker inside its worktree. APM terminology (Task IDs, Stage numbers, agent identifiers) does not appear in branch names, commit messages, or worktree directory names - these reflect the actual work, not the framework managing it.
 
-**Worktree standards:** The worktree is created by the launch, not by a separate `git worktree add`. It lands at `<checkout>/.claude/worktrees/<session name>`, on a branch named `worktree-<session name>`, and is left locked. The Worker cuts its own Task branch from the base inside it, so the automatically created branch is never worked on.
+**Worktree standards:** Create the worktree yourself, before the launch, at `<checkout>/.claude/worktrees/<session name>` on a branch named `worktree-<session name>` cut from the base branch. The launch then opens it instead of creating one, because a `--worktree` name whose directory already exists reuses that directory, and it locks the worktree while the session runs. Creating it first is what lets the bundle below be in place before the session resolves its first skill; a worktree the launch creates exists only once the session has already started. The Worker cuts its own Task branch from the base inside it, so the `worktree-` branch is never worked on.
 
-**Do not relocate the worktree.** Rules reach a session by walking up from its working directory, and that path lies below the checkout root only because the launch puts it there. A worktree placed anywhere else does not see Rules at all, and nothing reports the omission.
+**Do not relocate the worktree.** Rules reach a session by walking up from its working directory, and that path lies below the checkout root only because the worktree sits under `.claude/worktrees/`. A worktree placed anywhere else does not see Rules at all, and nothing reports the omission.
+
+**Bundle access:** the worktree has only tracked files, so the installed bundle - role skills, guides, agents, hook scripts - is missing from it, and a session launched there fails its launch prompt with `Unknown skill`. Copy the bundle in before the launch. Read `installedFiles.claude` in `.apm/metadata.json` and reduce each path to its first entry below a `.claude/` subdirectory - `.claude/skills/<skill>`, `.claude/agents/<file>`, `.claude/apm-guides/<file>`, `.claude/apm-hooks/<file>` - once each. For every entry absent from the worktree, create its parent directory there and copy the entry from the checkout to the same relative path. An entry already present came from git, which means the project versions it: leave it alone. Copy rather than link: a link resolves outside the worktree, and every read through it stops on a permission prompt that no one in a background session answers. Work at entry level, never a whole subdirectory and never `.claude` itself - a project may keep its own skills or agents beside the bundle's, and `.claude` holds `worktrees/`, so a copy of it would carry every other session's worktree and a link to it would contain itself. The copy is a snapshot for one Task: a session that outlives a bundle update keeps the version it started with.
+
+Treat `.claude/settings.json` and `.claude/settings.local.json` the same way: copy each one that exists in the checkout and is absent from the worktree. `settings.json` carries the dispatch gate's declaration, and a session without it runs ungated. When the project versions `settings.json`, the worktree gets the committed copy, so the gate reaches Workers only once its declaration is committed.
+
+**Ignore entries for the copies:** append each copied entry's path to the repository's shared exclude file, the `info/exclude` under `git rev-parse --git-common-dir`, anchored with a leading `/` and without a trailing slash, skipping lines already present. That file applies to the checkout and every worktree without a commit. An entry git reports as untracked leaves the worktree dirty, and a dirty worktree blocks its release. After copying, `git status --porcelain` in the worktree prints nothing.
 
 **Bus access:** the worktree holds only tracked files, so it has no `.apm/`. Create a symbolic link named `.apm` inside the worktree pointing at the absolute path of the workspace `.apm/`, so Task Logs and bus files resolve to the one shared copy that you can read during review. Write the ignore entry for it as `.apm`, with no trailing slash - a trailing slash matches directories only, leaves the link untracked, and blocks release of the session later. If a Worker needs untracked assets, note this in the Task Prompt.
 
@@ -181,17 +187,23 @@ Perform the following actions:
 4. If the Task changes anything that already exists, construct its delta section per §2.8 Spec Delta Standards: name the change and each capability, write any missing baseline from the base branch, write the delta, and validate the change's `changes` directory. Fix what the validator reports before going further.
 5. Clear the incoming Report Bus per §2.6 Delivery Standards.
 6. Read the Worker's Task Bus, then write the Task Prompt to it: `.apm/bus/<agent-slug>/task.md`.
-7. Launch the session from the Task's repository directory:
+7. From the Task's repository directory, create the worktree per §2.5 Version Control Standards:
+
+   ```
+   git worktree add <checkout>/.claude/worktrees/<slug>-<stage>.<task> -b worktree-<slug>-<stage>.<task> <base-branch>
+   ```
+
+8. Create the `.apm` link, copy the bundle entries and the settings files into it, add the copies to the exclude file, and confirm `git status --porcelain` in the worktree prints nothing, per §2.5 Version Control Standards.
+9. Launch the session from the same directory, with the same name:
 
    ```
    claude --bg --name <slug>-<stage>.<task> --worktree <slug>-<stage>.<task> "{SKILL_NAME:work} <slug>"
    ```
 
    The launch prompt is what starts the Worker skill. A trigger message cannot: role skills accept only a person's invocation, and a launch prompt counts as one.
-8. Wait until the session appears in the agent listing and its worktree exists on disk.
-9. Create the `.apm` link inside the new worktree per §2.5 Version Control Standards.
-10. Read both session identifiers with `claude agents --json` and record them, with the branch name, in the Task row when updating the Tracker per §2.4 Dispatch Standards.
-11. Send the fixed trigger text to the session by name per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages.
+10. Wait until the session appears in the agent listing.
+11. Read both session identifiers with `claude agents --json` and record them, with the branch name, in the Task row when updating the Tracker per §2.4 Dispatch Standards.
+12. Send the fixed trigger text to the session by name per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages.
 
 ### 3.4 Follow-Up Task Prompt Construction
 
@@ -204,7 +216,7 @@ Perform the following actions:
 4. Construct the follow-up prompt per §4.2 Follow-Up Format. Same `log_path` as the original.
 5. Clear the incoming Report Bus per §2.6 Delivery Standards.
 6. Read the Worker's Task Bus, then write to it: `.apm/bus/<agent-slug>/task.md`.
-7. Resume the Task's session in the background using the full session id from its Task row, then confirm it came back under the same id instead of as a copy. A copy means the short id was used or the session was never stopped.
+7. Confirm the session no longer appears in `claude agents --json`, then resume it in the background from the Task's repository directory using the full session id from its Task row, with no other flags - the session keeps the options it was launched with, and flags passed on the resume start a copy. Confirm it came back under the same id instead of as a copy. A copy means the short id was used, flags were passed, or the session had not finished stopping: a stop returns before the session has exited.
 8. Send the fixed trigger text to the session by name per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages. The session keeps the execution context of its first attempt, so the follow-up addresses what changed rather than restating what the session already did.
 
 ---
@@ -258,7 +270,7 @@ Follow-up Task Prompts use the same structure as §4.1 Task Prompt Format with t
 
 ### 4.3 Branch and Worktree Standards
 
-Branch naming follows the convention recorded in the Tracker Version Control table, and names describe the actual work. Worktree location is not a choice: the launch places it at `<checkout>/.claude/worktrees/<session name>`, where the session name is `<slug>-<stage>.<task>`. The directory holds a full checkout of all tracked files; untracked files are not present, which is why the bus is reached through a link per §2.5 Version Control Standards.
+Branch naming follows the convention recorded in the Tracker Version Control table, and names describe the actual work. Worktree location is not a choice: create it at `<checkout>/.claude/worktrees/<session name>`, where the session name is `<slug>-<stage>.<task>`, and launch with that same name so the session opens it. The directory holds a full checkout of all tracked files; untracked files are not present, which is why the bus is reached through a link and the bundle is copied in per §2.5 Version Control Standards.
 
 ### 4.4 Tracker VC Entry Format
 
@@ -288,7 +300,8 @@ VC configuration recorded in the Version Control table within the Tracker, with 
 - *Assuming base branch name:* Read the base branch from the Tracker's Version Control table for the relevant repository. Do not assume `main` or `master`.
 - *Forgetting session and VC state in Handoff:* Task rows must reflect current branch and session state before Handoff. Include active branches, live sessions with both identifiers, and pending merges in the Handoff Log - an incoming Manager cannot resume a session whose full id was never written down.
 - *Resuming with the short id:* Only the full session id continues a session. The short id starts a copy that has lost the worktree, and the copy looks healthy.
-- *Moving the worktree:* The launch decides where the worktree goes. Relocating it silently cuts the session off from Rules.
+- *Moving the worktree:* The worktree goes under `.claude/worktrees/` and nowhere else. Relocating it silently cuts the session off from Rules.
+- *Launching before copying the bundle:* A session resolves its skills when it starts. Files copied after the launch arrive too late for the launch prompt, which fails with `Unknown skill` while the session itself looks healthy.
 - *Committing build artifacts:* Do not commit generated files. Create or update `.gitignore` for build directories.
 
 ---

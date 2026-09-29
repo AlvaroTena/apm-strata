@@ -87,14 +87,16 @@ Merge state is a dispatch prerequisite. Merge completed feature branches into th
 
 The reason is the brief. The User reads what the Task produced only after the review, and may call for a correction. That correction goes to the Task's own session, which still holds the context of the attempt - so a session released in the same breath as the merge takes that option away before the User ever had it. A merged Task whose session is still around costs a worktree; a released one costs a fresh session and a cold start.
 
-Releasing a session refuses unless its worktree is clean and its commits are on a remote. Which path applies depends on the project:
+**Releasing** is `claude rm <short id>` on the stopped session. It deletes the session, its worktree and the lock the platform holds on that worktree in one step. It refuses unless the worktree is clean and its commits are on a remote, and each refusal prints what clears it. Which path applies depends on the project:
 
-- *With a remote:* push the Task branch, then release the session by its short id. Nothing is discarded.
+- *With a remote:* push the Task branch, then release. Nothing is discarded.
 - *Without a remote:* merge first, then release with the discard option, passing the exact value the refusal message prints. This throws away the worktree's commits, which is safe only because the merge already carried them to the base branch. Never use it before merging.
 
-If a release is refused for uncommitted changes, look for an untracked `.apm` link - the ignore entry must be `.apm` with no trailing slash per `{GUIDE_PATH:task-assignment}` §2.5 Version Control Standards.
+A refusal for uncommitted changes means git sees something untracked in the worktree - usually a copied bundle entry missing from the exclude file, or an `.apm/` ignore entry with a trailing slash, per `{GUIDE_PATH:task-assignment}` §2.5 Version Control Standards. Run `git status --porcelain` in the worktree, fix the ignore entry behind each line it prints, and release again. Do not fall back to `git worktree remove`: git refuses a worktree the platform has locked for its session, and forcing past both the lock and the dirty state discards whatever made the worktree dirty instead of explaining it.
 
-**Branch cleanup:** releasing a session deletes no refs. Two branches survive it - the Task branch and the branch the launch created alongside the worktree - and both are deleted separately. During Stage-end sweeps, batch the deletions into a single terminal invocation.
+**Branch cleanup:** releasing a session keeps the Task branch, and keeps the `worktree-<session name>` branch created with the worktree unless the worktree still had it checked out, in which case the release takes it along. Delete whichever of the two remain with `git branch -d` once the Task branch is merged. When `-d` refuses, the branch holds work the base branch does not: check what it is before deleting anything. Delete the remote copy of the Task branch too when it was pushed only so the release could pass. During Stage-end sweeps, batch the deletions into a single terminal invocation.
+
+**Delta cleanup:** when the Task carried a spec delta, delete `.apm/openspec/<change>/` once its branch is merged, per `{GUIDE_PATH:task-assignment}` §2.8 Spec Delta Standards.
 
 ### 2.6 Stage Summary Standards
 
