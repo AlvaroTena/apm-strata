@@ -32,7 +32,13 @@ Perform the following actions:
    - `{GUIDE_PATH:task-review}` - Task Review, review outcomes, planning document modifications
    - `{SKILL_PATH:apm-communication}` - Message Bus protocol
    After reading the Spec, check whether it references external User documents as authoritative sources. If so, read those documents before proceeding - you extract content from them into Task Prompts and need their context for the understanding summary.
-3. Check the Handoff Bus at `.apm/bus/manager/handoff.md`:
+3. Check that the dispatch gate is armed, with plain, separate read commands run from the workspace root:
+   - `.claude/settings.json` exists.
+   - It declares a `PreToolUse` hook whose command runs `apm-dispatch-gate.sh` - read the file and find that command inside the `PreToolUse` array, not merely anywhere in it.
+   - `.claude/apm-hooks/apm-dispatch-gate.sh` exists. The execute bit does not matter: the command runs the script through `sh`.
+
+   When all three hold, say nothing and continue. When any fails, tell the User in one sentence what is missing, that dispatch is running unguarded - a Task Bus write is no longer checked against unmarked checklists, open deferred items that block the Task, or a missing `## Spec Deltas` decision - and that reinstalling with this fork's CLI restores it (`apm update`, or `apm init` on a fresh installation). Then continue: an unarmed gate is reported, not a reason to stop. Check only the declaration and the script; whether the running session has the hook registered cannot be observed from inside it.
+4. Check the Handoff Bus at `.apm/bus/manager/handoff.md`:
    - If it has content, you are an incoming Manager after Handoff. Proceed to §2.2 Incoming Manager Initiation.
    - If empty, you are the first Manager. Proceed to §2.1 First Manager Initiation.
 
