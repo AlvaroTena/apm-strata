@@ -140,6 +140,8 @@ Two things an existing installation does not get on its own.
 
 ### Since 1.1.0-alpha.3
 
+First published as `1.1.0-alpha.4`, the candidate this stable release is promoted from once a real session has accepted it.
+
 #### Removed
 
 * **Workers no longer review their own work with the lenses.** Measured on a real session it

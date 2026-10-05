@@ -28,6 +28,8 @@ The first stable version of a release line - `1.1.0`, for example - is published
 
 The reason is where the fixes go. The first release of this fork was published as stable before it had been accepted, and the defects acceptance found right after had nowhere to land except as patches to a version nobody had validated. Held back as pre-releases, those fixes stay inside the line being tested, and the stable version, when it comes, is the one that passed. Because pre-releases are excluded from "latest", `apm init` and `apm update` keep resolving to the latest stable release while a line is still being tested; a pre-release is installed on purpose, with `--tag`.
 
+Promotion keeps the stable release identical to what was accepted. The accepted pre-release's commit is pinned on a `release/<line>` branch - `release/1.1` - and the stable release is published from that branch with one commit on top that changes only the version in `package.json` and dates the changelog entry, because the package version names the CLI tarball and is recorded at install. No code changes between the accepted pre-release and the stable one. Work on the next line continues on `main` with its own pre-releases.
+
 ## Version Compatibility
 
 The CLI and template releases are decoupled but tied by **major version**. CLI v1.x will only fetch v1.x.x releases from the official repository, ensuring template compatibility. Minor and patch versions can differ between CLI and templates.
