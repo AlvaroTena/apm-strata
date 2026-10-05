@@ -76,12 +76,21 @@ export async function removeCommand(options = {}) {
     }
   }
 
+  const remaining = metadata.assistants.filter(id => !assistantIds.includes(id));
+
+  // The hook scripts live in an assistant's config directory, so the
+  // declarations outlive their scripts once the last assistant is gone. This
+  // runs first because it is the step that can refuse: an unreadable settings
+  // file stops the removal before any file is deleted or metadata rewritten.
+  if (!remaining.length) {
+    await removeApmHooks();
+  }
+
   // Clean tracked files for removed assistants
   const installedFiles = getInstalledFiles(metadata);
   await removeInstalledFiles(process.cwd(), installedFiles, assistantIds);
 
   // Update metadata
-  const remaining = metadata.assistants.filter(id => !assistantIds.includes(id));
   const remainingFiles = { ...metadata.installedFiles };
   for (const id of assistantIds) {
     delete remainingFiles[id];
@@ -91,12 +100,6 @@ export async function removeCommand(options = {}) {
   metadata.installedFiles = remainingFiles;
   metadata.cliVersion = CLI_VERSION;
   await writeMetadata(metadata);
-
-  // The hook scripts live in an assistant's config directory, so the
-  // declarations outlive their scripts once the last assistant is gone.
-  if (!remaining.length) {
-    await removeApmHooks();
-  }
 
   // Clear content for final output
   logger.clearAndBanner();
