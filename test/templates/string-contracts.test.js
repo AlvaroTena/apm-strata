@@ -1,5 +1,5 @@
 /**
- * Locks the literal strings one template surface writes and another matches.
+ * Locks the literal strings one surface writes and another matches.
  *
  * These contracts fail silently by construction. When a heading is reworded on
  * one side, the side that matches it finds nothing, reports nothing, and the
@@ -9,6 +9,9 @@
  * To add a contract, append an entry to CONTRACTS. A side matches the literal
  * as plain text unless it declares its own `match`, which is what a side needs
  * when it carries the string inside a regular expression rather than as prose.
+ * A side's `file` is relative to `templates/` unless the side declares
+ * `root: 'repo'`, which resolves it from the repository root instead - the form
+ * a contract needs when one side lives in the CLI or in the documentation.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -16,7 +19,15 @@ import fs from 'fs-extra';
 import path from 'path';
 import { repoRoot } from '../build/support.js';
 
-const templates = path.join(repoRoot, 'templates');
+const ROOTS = {
+  templates: path.join(repoRoot, 'templates'),
+  repo: repoRoot
+};
+
+/** Returns the absolute path of a side's file under its declared root. */
+function resolveSide(side) {
+  return path.join(ROOTS[side.root ?? 'templates'], side.file);
+}
 
 const CONTRACTS = [
   {
@@ -57,20 +68,31 @@ const CONTRACTS = [
       { role: 'reads', file: 'guides/context-gathering.md' },
       { role: 'reads', file: 'guides/task-review.md' }
     ]
+  },
+  {
+    // The README's provenance table is the attribution the MIT license of the
+    // adapted material requires, so a wrong link there is not a typo.
+    name: 'claude-obsidian repository in the provenance table',
+    literal: 'https://github.com/AgriciDaniel/claude-obsidian',
+    sides: [
+      { role: 'writes', root: 'repo', file: 'src/services/knowledge/claude-obsidian.js' },
+      { role: 'reads', root: 'repo', file: 'README.md' }
+    ]
   }
 ];
 
-describe('string contracts between template surfaces', () => {
+describe('string contracts between surfaces', () => {
   for (const contract of CONTRACTS) {
     describe(contract.name, () => {
       for (const side of contract.sides) {
         it(`${side.file} ${side.role} it`, async () => {
-          const content = await fs.readFile(path.join(templates, side.file), 'utf8');
+          const content = await fs.readFile(resolveSide(side), 'utf8');
           const found = side.match ? side.match.test(content) : content.includes(contract.literal);
 
           expect(
             found,
-            `${side.file} no longer ${side.role} the literal "${contract.literal}". ` +
+            `${side.file} no longer ${side.role} the literal "${contract.literal}" ` +
+              `(contract: ${contract.name}). ` +
               'Every side of this contract has to change together, or the mechanism ' +
               'it feeds stops working without reporting anything.'
           ).toBe(true);
