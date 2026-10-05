@@ -138,6 +138,24 @@ non-zero if any document has a violation:
 Every violation names the rule it broke and the line it broke it on, so the message is
 actionable without opening the validator.
 
+The baseline paired with a delta is held to rules 2 and 3 as well, because the other rules
+read it: a baseline scenario at the wrong depth is not counted, so rule 4 would stop
+noticing a `MODIFIED` block that drops it. Its violations are reported under the baseline's
+own path, labelled `(baseline of <delta>)`, with messages that begin `Baseline`, and a
+baseline shared by several deltas is reported once. With the baseline shown under Format
+below, writing its `Overlapping slot` scenario with three hashes gives:
+
+```
+[ERROR]   .apm/openspec/feat-recurring-slots/specs/scheduling/spec.md (baseline of .apm/openspec/feat-recurring-slots/changes/feat-recurring-slots/specs/scheduling/spec.md): 1 violation(s)
+[INFO]      line 14 [scenario-depth] Baseline scenario "Overlapping slot" under requirement "Slot Booking" uses 3 hash(es); a scenario heading takes exactly four, and a shallower or deeper one is not counted when a MODIFIED block is checked against it.
+[SUCCESS] .apm/openspec/feat-recurring-slots/changes/feat-recurring-slots/specs/scheduling/spec.md: valid
+[ERROR]   Delta validation failed with 1 violation(s)
+```
+
+The delta itself reports valid, and that is the point: against a baseline that has lost
+the scenario, a `MODIFIED` block that drops it looks complete. The run still fails, on the
+baseline.
+
 **Point it at the change's `changes` directory, never at the change directory itself.**
 Because every `spec.md` below the argument is checked as a delta, a directory that
 contains the baseline reads the baseline as a delta too. A baseline's requirements belong
