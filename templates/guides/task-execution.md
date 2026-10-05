@@ -60,26 +60,6 @@ Operate in the worktree given in the Task Prompt's Workspace section. Cut the Ta
 
 **Updating it.** Write what the next session of this domain would waste time rediscovering, and nothing else. Keep it short enough to stay worth reading: replace entries that no longer hold rather than appending to them, and leave out anything a Task Log already records in detail. An empty file is a valid state - say nothing rather than pad it.
 
-### 2.7 Self-Review Standards
-
-Before you log and report, run the review lenses over your own work once and fix what is plainly yours. This does not replace the coordinator's review, which stages its own material, runs the lenses again and judges every finding. It catches the obvious before a correction round has to.
-
-**Once per attempt.** Run the lenses one time on the first attempt and one time on each follow-up - never in a loop until they come back clean. Each run costs a subagent per lens, and a clean pass proves nothing the coordinator's review will not check anyway.
-
-**Stage it in your mailbox,** at `.apm/review/<stage>-<task>/self/` inside your worktree, both numbers zero-padded. The coordinator's own staging for this Task uses the directory above it, so the `self/` subdirectory keeps the two apart, and the collection carries it back to the shared `.apm/` beside the coordinator's material. Write:
-- `artifact.diff` - your Task branch against its base branch, after committing, written with one standalone command and the path spelled out: `git diff <base-branch>...HEAD > .apm/review/<stage>-<task>/self/artifact.diff`. A shell variable or a chained command around `git` is refused by the worktree isolation.
-- `acceptance.md` - the validation criteria from your Task Prompt, copied verbatim.
-- `claims.md` - the claims you are about to write in your Task Log.
-- `context.md` - the worktree path, as the repository the lenses may read.
-
-**Select and launch as the review does.** Read the lens selection and execution sections of `{SKILLS_DIR}/apm.manage/references/review-procedure.md` - the copy in your worktree - and follow them rather than a summary: the same lenses apply, each receives absolute paths and never text, the edge-case lens alone gets `claims.md` marked as not to be read until its instructions call for it, and every launch prompt carries the same constraints. Launch the applicable lenses together as subagents. Save each lens's reply to `self/<lens>.json` verbatim - the JSON object it returned, every field of every finding - not a summary of it: the collection carries these files to the coordinator as the raw record.
-
-**Act on what is clearly yours.** Fix a finding that is plainly a defect of your work, commit the fix, and rerun the validation it touches. Leave the rest as it is and say why. Do not assign verdicts or buckets - judging findings belongs to the coordinator, who is not the author. A finding that points at something your Task Prompt never asked for, or asked for ambiguously, is a gap in the brief, not a defect of yours: name it as one, because that is half of what this pass is for.
-
-**Record everything the lenses returned,** not only what you changed, in the Task Log's `## Self-Review` section per `{GUIDE_PATH:task-logging}` §4.1 Task Log Format. A silent fix removes the signal the coordinator needs to judge how the attempt went.
-
-When subagents are unavailable, do not run the lenses by hand: write why in the section and move on.
-
 ---
 
 ## 3. Task Execution Procedure
@@ -131,14 +111,13 @@ Perform the following actions:
 ### 3.6 Task Completion
 
 Perform the following actions:
-1. Commit work to the assigned branch per §2.5 Version Control Standards.
-2. Run the self-review once per §2.7 Self-Review Standards: stage your material, launch the applicable lenses, fix and commit what is plainly your defect, and rerun the validation each fix touches.
-3. Present your assessment visibly in chat: whether all objectives are met and deliverables are ready, whether any important findings or compatibility issues arose, and the Task's outcome status per `{GUIDE_PATH:task-logging}` §2.2 Outcome Standards.
-4. Create Task Log per `{GUIDE_PATH:task-logging}` §3.1 Task Log Procedure at `log_path`, including its `## Self-Review` section.
-5. Settle the `## Spec Deltas` section per §2.2 Validation Standards: validate the delta when the section names a directory, or confirm `none - <reason>` still holds and report the deviation when it does not. A failing delta is a failing Task: correct it or report the failure, never report Success over it.
-6. Update `handoff.md` per §2.6 Domain Continuity Standards.
-7. Write Task Report and send the trigger back per `{GUIDE_PATH:task-logging}` §3.2 Task Report Delivery. If auto-compaction occurred and recovery was performed via `{SKILL_NAME:recover}`, note it in the Task Report.
-8. Stop. The coordinator reviews the report and either sends a correction to this same session or releases it after merging. Do not start anything else, and do not act on the absence of a reply.
+1. Present your assessment visibly in chat: whether all objectives are met and deliverables are ready, whether any important findings or compatibility issues arose, and the Task's outcome status per `{GUIDE_PATH:task-logging}` §2.2 Outcome Standards.
+2. Commit work to the assigned branch per §2.5 Version Control Standards.
+3. Create Task Log per `{GUIDE_PATH:task-logging}` §3.1 Task Log Procedure at `log_path`.
+4. Settle the `## Spec Deltas` section per §2.2 Validation Standards: validate the delta when the section names a directory, or confirm `none - <reason>` still holds and report the deviation when it does not. A failing delta is a failing Task: correct it or report the failure, never report Success over it.
+5. Update `handoff.md` per §2.6 Domain Continuity Standards.
+6. Write Task Report and send the trigger back per `{GUIDE_PATH:task-logging}` §3.2 Task Report Delivery. If auto-compaction occurred and recovery was performed via `{SKILL_NAME:recover}`, note it in the Task Report.
+7. Stop. The coordinator reviews the report and either sends a correction to this same session or releases it after merging. Do not start anything else, and do not act on the absence of a reply.
 
 ---
 
