@@ -7,11 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
-## [1.1.0] - Unreleased
+## [1.1.0] - YYYY-MM-DD
 
-The `apm-strata` fork: Claude Code only, roles as skills, native dispatch, and review by
-adversarial lenses. See the README for the design and the provenance of each adapted
-mechanic.
+The first stable release of the `apm-strata` fork: Claude Code only, roles as skills, native
+dispatch, and review by adversarial lenses. See the README for the design and the provenance
+of each adapted mechanic.
+
+This entry describes the fork as a whole against upstream. The fixes that acceptance called
+for were shipped in the pre-releases recorded below it, `[1.1.0-alpha.2]` and
+`[1.1.0-alpha.3]`. What changed after the last pre-release, including a mechanism `alpha.3`
+added and this release takes out again, is listed under *Since 1.1.0-alpha.3*.
 
 ### Breaking Changes
 
@@ -83,7 +88,7 @@ mechanic.
 
 * **An archive explorer subagent** for pulling context out of archived sessions.
 
-* **A test suite**: 239 tests over the build, the CLI, the hooks and the template contracts,
+* **A test suite**: 282 tests over the build, the CLI, the hooks and the template contracts,
   where there was none.
 
 * **`docs/measurements.md`**, two measurement protocols for design claims that are currently
@@ -123,6 +128,38 @@ Two things an existing installation does not get on its own.
   The planning procedure searches both and moves the block to the destination the next time
   it runs, deleting the duplicate, so this resolves itself - but until it does, an agent
   started against the old file finds no block.
+
+* **Task Logs written with a `## Self-Review` section break nothing.** Logs from an
+  installation on `1.1.0-alpha.3` keep the section; nothing reads it any more, and the
+  claims parser stops at the heading before it as it did before.
+
+* **A malformed delta baseline that used to pass now fails.** `apm delta validate` holds the
+  baseline to the scenario-depth and normative-keyword rules. A baseline with a scenario
+  heading at the wrong depth, or a requirement without `SHALL` or `MUST`, fails the run until
+  it is corrected.
+
+### Since 1.1.0-alpha.3
+
+#### Removed
+
+* **Workers no longer review their own work with the lenses.** Measured on a real session it
+  did not reduce correction rounds and nearly tripled lens launches; only the Manager
+  launches lenses and triages, as before `alpha.3`. Task Logs no longer carry a
+  `## Self-Review` section.
+
+#### Fixed
+
+* **The Task Bus is written with the file tools only.** The dispatch gate guards only
+  file-tool writes, so a prompt written from the shell was dispatched unchecked. The guides
+  now forbid the shell route; the gate itself still sees only file-tool writes.
+
+* **`apm remove` withdraws the hook declarations before it deletes anything.** With an
+  unreadable `.claude/settings.json` it refuses and leaves every file in place.
+
+* **`apm delta validate` holds the baseline paired with a delta to the rules of form.** A
+  baseline scenario at the wrong depth or a baseline requirement without `SHALL` or `MUST`
+  fails the run and is reported under the baseline's own path, once however many deltas
+  share it.
 
 ## [1.1.0-alpha.3] - 2026-09-30
 
