@@ -59,7 +59,7 @@ Perform the following actions:
    - Set `status` per §2.2 Outcome Standards.
    - Set `important_findings` and `compatibility_issues` per §2.1 Flag Assessment Standards.
    - Set `stage`, `task`, `title`, and `agent` from the Task Prompt.
-4. Complete markdown body sections per §4.1 Task Log Format. Always include: Summary, Details, Output, Validation, Self-Review, Claims, Issues. Include Rule Deviations only when this Task departed from a rule, and the flag-driven sections (Compatibility Concerns, Important Findings) only when their corresponding flag is `true`.
+4. Complete markdown body sections per §4.1 Task Log Format. Always include: Summary, Details, Output, Validation, Claims, Issues. Include Rule Deviations only when this Task departed from a rule, and the flag-driven sections (Compatibility Concerns, Important Findings) only when their corresponding flag is `true`.
 5. Write the Task Log to `log_path`.
 
 ### 3.2 Task Report Delivery
@@ -125,11 +125,6 @@ compatibility_issues: true | false
 ## Validation
 [Description of validation performed and result]
 
-## Self-Review
-Lenses run: <lens>, <lens>
-- <lens> | <location> | <trigger_condition>
-  outcome: fixed <commit> | not fixed - <why> | brief gap - <what the Task Prompt left open>
-
 ## Claims
 - claim: <falsifiable statement this Task stands behind>
   evidence: <path:line, commit, test, or output that proves it>
@@ -152,13 +147,6 @@ Lenses run: <lens>, <lens>
 [Only include if important_findings: true]
 [Project-relevant discoveries that Manager must know]
 ```
-
-**Self-Review.** Always present, written from the self-review you ran before logging per `{GUIDE_PATH:task-execution}` §2.7 Self-Review Standards. The first line names the lenses that ran. Then one entry for every finding they returned, whether or not you acted on it, with one outcome:
-- `fixed <commit>` - a defect of your work, corrected in that commit and revalidated.
-- `not fixed - <why>` - you judge it wrong or out of scope, and say why in a sentence.
-- `brief gap - <what>` - it points at something the Task Prompt did not ask for, or asked for ambiguously.
-
-When the lenses returned nothing, write `No findings` under the first line. When they could not run, write why instead of the first line. The section is the author's testimony, not a verdict: the coordinator reads it as such and judges the findings itself. It sits in its own section so the claims parser, which stops at the next heading, never reads it.
 
 **Claims.** Always present. A Task that stands behind nothing falsifiable writes `none` as the whole section body - the section is never omitted, because an absent section and an empty one say different things and only one of them is a statement. Each entry opens with `- claim:` and carries `evidence:` and `supersedes:` as indented lines beneath it. `evidence` is required; `supersedes` takes either the identifier of an earlier claim, which begins `clm-`, or `none`.
 

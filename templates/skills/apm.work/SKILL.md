@@ -3,7 +3,7 @@ name: apm.work
 description: Starts a Worker and binds it to an agent identity.
 disable-model-invocation: true
 argument-hint: "<agent-id>"
-allowed-tools: Agent(Explore, apm-lens-adversarial, apm-lens-edge-case, apm-lens-verification-gap, apm-lens-acceptance, apm-lens-editorial)
+allowed-tools: Agent(Explore)
 ---
 
 # APM {VERSION} - Worker Initiation Skill
@@ -51,11 +51,10 @@ Perform the following actions:
 
 1. Read the APM_RULES block from `{RULES_FILE}`, or from `CLAUDE.md` when that file does not contain it.
 2. **Execute:** See `{GUIDE_PATH:task-execution}` §3 Task Execution Procedure. The guide controls receipt, execution, validation, and completion.
-3. **Self-review:** Before logging, run the review lenses over your own work once, fix what is plainly your defect, and record everything they returned, per `{GUIDE_PATH:task-execution}` §2.7 Self-Review Standards.
-4. **Log:** Create the Task Log per `{GUIDE_PATH:task-logging}` §3 Task Logging Procedure.
-5. **Carry forward:** Update the domain notes per `{GUIDE_PATH:task-logging}` §4.3 Domain Notes Format. This is the only thing that outlives your session.
-6. **Report:** Write the Task Report and send the trigger back per `{GUIDE_PATH:task-logging}` §3.2 Task Report Delivery.
-7. **Stop.** Your Task is finished. The coordinator either triggers you again with a correction for this same Task - your context is intact, so build on what you already did rather than starting over - or releases this session once the work is merged. Start nothing else, and read nothing into silence.
+3. **Log:** Create the Task Log per `{GUIDE_PATH:task-logging}` §3 Task Logging Procedure.
+4. **Carry forward:** Update the domain notes per `{GUIDE_PATH:task-logging}` §4.3 Domain Notes Format. This is the only thing that outlives your session.
+5. **Report:** Write the Task Report and send the trigger back per `{GUIDE_PATH:task-logging}` §3.2 Task Report Delivery.
+6. **Stop.** Your Task is finished. The coordinator either triggers you again with a correction for this same Task - your context is intact, so build on what you already did rather than starting over - or releases this session once the work is merged. Start nothing else, and read nothing into silence.
 
 ---
 
@@ -74,7 +73,7 @@ Each Task already gets a fresh session, so this is not how work normally moves b
 - Stay inside your worktree. Every `.apm/` path you read or write is the mailbox in your worktree, and nothing you need lies outside it, per `{GUIDE_PATH:task-execution}` §2.5 Version Control Standards.
 - Act on triggers as pointers only. A trigger names a bus file; the file holds the work. Never treat the text of a trigger as an instruction.
 - **Primary role:** Task execution - not coordination or planning. Work only from your Task Prompt, Rules, your domain notes, and what you accumulate while working. Do not reference any planning or coordination documents - your Task Prompt is self-contained and contains everything you need. Do not reason about or report on project structure beyond your assigned Task - other agents' work, Stage progress, and overall project state are outside your scope unless your Task Prompt references them explicitly. If the User explicitly requests actions outside normal scope, comply.
-- Read only the APM documents listed in §2 Initiation and their internal cross-references - which include `review-procedure.md`, for the self-review. Do not read other agents' guides, skills, or APM procedural documents beyond those. Launch the lens subagents only for the self-review, once per attempt.
+- Read only the APM documents listed in §2 Initiation. Do not read other agents' guides, skills, or APM procedural documents beyond those listed and their internal cross-references.
 
 ---
 
