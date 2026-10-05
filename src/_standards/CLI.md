@@ -391,10 +391,25 @@ directory, which is walked. Exits non-zero when any rule is violated.
 
 1. Resolve the path and require it to exist.
 2. Collect the documents to check.
-3. Check each against its baseline spec.
+3. Check each against its baseline spec, and check the baseline itself.
 4. Report per document.
 5. Fail when any violation was found.
 6. Report success.
+
+The delta rules read the baseline, so a malformed baseline makes them compare
+against less than it holds: a scenario heading at the wrong depth is not
+counted, and the completeness rule stops noticing a `MODIFIED` block that drops
+it. The baseline paired with a delta is therefore held to the rules of form a
+delta follows, scenario depth and the normative keyword, through
+`validateBaseline` in `services/delta.js`. The rules that belong to an
+operation (the operation group, the matching key, completeness) do not apply:
+a baseline has no operation.
+
+Baseline violations are reported under the baseline's own path, labelled as
+the baseline of the delta that paired with it, and each message begins with
+`Baseline`, so nobody takes them for a fault in the delta. A baseline shared by
+several deltas is checked and counted once. An absent baseline is not an error;
+a delta with only `ADDED` blocks needs none.
 
 ### Session Archival
 
@@ -436,7 +451,8 @@ scripts withdraws the declarations with them, because a declaration that
 outlives its script fires on every matching event and fails:
 
 - `remove`, once the last assistant is gone, since the scripts live in an
-  assistant's config directory.
+  assistant's config directory. It withdraws before it deletes any file or
+  rewrites the metadata, for the same reason as `archive` below.
 - `archive`, which deletes every installed file. It withdraws before it
   snapshots or deletes anything, because withdrawal is the step that can
   refuse: an unreadable settings file stops the archive with nothing changed.

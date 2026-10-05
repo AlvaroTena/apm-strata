@@ -1,7 +1,8 @@
 /**
  * Delta Validation Module
  *
- * Parses spec delta documents and checks the four rules that govern them.
+ * Parses spec delta documents and checks the four rules that govern them, and
+ * checks the baseline specs they are compared against for the rules of form.
  *
  * A delta groups requirements under ADDED, MODIFIED and REMOVED headings. The
  * rule that carries the weight is the fourth: a MODIFIED requirement replaces
@@ -217,6 +218,48 @@ function checkModifiedCompleteness(requirement, baseline) {
 }
 
 /**
+ * Checks a baseline spec against the rules of form a delta also follows.
+ *
+ * The delta rules read the baseline: a scenario heading at the wrong depth is
+ * not counted as a scenario, so the completeness rule would stop noticing a
+ * MODIFIED block that drops it. A baseline has no operation, so the rules that
+ * belong to one (the operation group, the matching key, completeness) do not
+ * apply here.
+ *
+ * @param {string} [baselineMarkdown=''] - Baseline spec contents.
+ * @returns {Object[]} Violations, ordered by line.
+ */
+export function validateBaseline(baselineMarkdown = '') {
+  const baseline = parseSpec(baselineMarkdown);
+  const violations = [];
+
+  for (const heading of baseline.scenarioHeadings) {
+    if (heading.hashes === 4) continue;
+    const owner = heading.requirement ? ` under requirement "${heading.requirement}"` : '';
+    violations.push(
+      violation(
+        'scenario-depth',
+        heading.line,
+        `Baseline scenario "${heading.name}"${owner} uses ${heading.hashes} hash(es); a scenario heading takes exactly four, and a shallower or deeper one is not counted when a MODIFIED block is checked against it.`
+      )
+    );
+  }
+
+  for (const requirement of baseline.requirements) {
+    if (NORMATIVE.test(requirement.body.join('\n'))) continue;
+    violations.push(
+      violation(
+        'normative-keyword',
+        requirement.line,
+        `Baseline requirement "${requirement.name}" states no obligation; a requirement must contain SHALL or MUST.`
+      )
+    );
+  }
+
+  return violations.sort((a, b) => a.line - b.line || a.rule.localeCompare(b.rule));
+}
+
+/**
  * Validates a delta document against its baseline spec.
  *
  * @param {string} deltaMarkdown - Delta document contents.
@@ -248,4 +291,4 @@ export function validateDelta(deltaMarkdown, baselineMarkdown = '') {
   return violations.sort((a, b) => a.line - b.line || a.rule.localeCompare(b.rule));
 }
 
-export default { OPERATIONS, parseSpec, validateDelta };
+export default { OPERATIONS, parseSpec, validateDelta, validateBaseline };

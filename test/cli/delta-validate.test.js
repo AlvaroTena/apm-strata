@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import path from 'path';
-import { validateDelta, parseSpec } from '../../src/services/delta.js';
+import { validateDelta, validateBaseline, parseSpec } from '../../src/services/delta.js';
 
 const BASELINE = `# auth Specification
 
@@ -187,6 +187,37 @@ The system SHALL expire an idle session after 10 minutes.
   });
 });
 
+describe('validateBaseline', () => {
+  it('accepts a baseline that follows the rules of form', () => {
+    expect(validateBaseline(BASELINE)).toEqual([]);
+  });
+
+  it('accepts an absent baseline', () => {
+    expect(validateBaseline('')).toEqual([]);
+  });
+
+  it('rejects a scenario heading that is not four hashes deep and names its requirement', () => {
+    const baseline = BASELINE.replace('#### Scenario: Active session survives', '### Scenario: Active session survives');
+    const violations = validateBaseline(baseline);
+
+    expect(rules(violations)).toEqual(['scenario-depth']);
+    expect(violations[0].message).toMatch(/^Baseline scenario "Active session survives" under requirement "Session Expiry"/);
+  });
+
+  it('rejects a requirement that states no obligation', () => {
+    const baseline = BASELINE.replace('The system SHALL expire', 'The system expires');
+    const violations = validateBaseline(baseline);
+
+    expect(rules(violations)).toEqual(['normative-keyword']);
+    expect(violations[0].message).toMatch(/^Baseline requirement "Session Expiry" states no obligation/);
+  });
+
+  it('does not ask a baseline for an operation group', () => {
+    // A baseline has no operation; its requirements sit under plain headings.
+    expect(rules(validateBaseline(BASELINE))).not.toContain('operation-group');
+  });
+});
+
 describe('parseSpec', () => {
   it('collects scenarios under the requirement that owns them', () => {
     const parsed = parseSpec(BASELINE);
@@ -312,6 +343,65 @@ describe('apm delta validate', () => {
 
     await expect(deltaValidateCommand('openspec/changes')).rejects.toThrow(
       /Delta validation failed with 2 violation/
+    );
+  });
+
+  it('fails on a baseline scenario at the wrong depth and names the baseline', async () => {
+    files.set(
+      path.join(WORKSPACE, 'openspec/specs/auth/spec.md'),
+      BASELINE.replace('#### Scenario: Active session survives', '### Scenario: Active session survives')
+    );
+
+    await expect(deltaValidateCommand('openspec/changes/good')).rejects.toThrow(
+      /Delta validation failed with 1 violation/
+    );
+    const printed = logger.error.mock.calls.map(([message]) => message);
+    expect(printed).toContain(
+      'openspec/specs/auth/spec.md (baseline of openspec/changes/good/specs/auth/spec.md): 1 violation(s)'
+    );
+    expect(printed.some(message => /\[scenario-depth\] Baseline scenario "Active session survives" under requirement "Session Expiry"/.test(message))).toBe(true);
+    // The delta itself is still sound and is reported as such.
+    expect(logger.success).toHaveBeenCalledWith('openspec/changes/good/specs/auth/spec.md: valid');
+  });
+
+  it('no longer passes a MODIFIED block that drops a miscounted baseline scenario', async () => {
+    // The baseline scenario at three hashes is invisible to the completeness
+    // rule, so dropping it from the MODIFIED block used to validate clean.
+    files.set(
+      path.join(WORKSPACE, 'openspec/specs/auth/spec.md'),
+      BASELINE.replace('#### Scenario: Active session survives', '### Scenario: Active session survives')
+    );
+    files.set(
+      path.join(WORKSPACE, 'openspec/changes/good/specs/auth/spec.md'),
+      `## MODIFIED Requirements
+### Requirement: Session Expiry
+The system SHALL expire an idle session after 10 minutes.
+
+#### Scenario: Idle session expires
+- **WHEN** a session has been idle for 10 minutes
+- **THEN** the system rejects the next request
+`
+    );
+
+    await expect(deltaValidateCommand('openspec/changes/good')).rejects.toThrow(/Delta validation failed/);
+  });
+
+  it('fails on a baseline requirement without SHALL or MUST', async () => {
+    files.set(path.join(WORKSPACE, 'openspec/specs/auth/spec.md'), BASELINE.replace('The system SHALL expire', 'The system expires'));
+
+    await expect(deltaValidateCommand('openspec/changes/good')).rejects.toThrow(
+      /Delta validation failed with 1 violation/
+    );
+    const printed = logger.error.mock.calls.map(([message]) => message);
+    expect(printed.some(message => /\[normative-keyword\] Baseline requirement "Session Expiry"/.test(message))).toBe(true);
+  });
+
+  it('reports a baseline shared by several deltas once', async () => {
+    files.set(path.join(WORKSPACE, 'openspec/specs/auth/spec.md'), BASELINE.replace('The system SHALL expire', 'The system expires'));
+    files.set(path.join(WORKSPACE, 'openspec/changes/other/specs/auth/spec.md'), VALID_DELTA);
+
+    await expect(deltaValidateCommand('openspec/changes')).rejects.toThrow(
+      /Delta validation failed with 1 violation/
     );
   });
 

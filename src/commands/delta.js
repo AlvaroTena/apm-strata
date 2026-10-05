@@ -10,7 +10,7 @@
 import path from 'path';
 import fs from 'fs-extra';
 import { CLIError } from '../core/errors.js';
-import { validateDelta } from '../services/delta.js';
+import { validateDelta, validateBaseline } from '../services/delta.js';
 import logger from '../ui/logger.js';
 
 /**
@@ -75,6 +75,17 @@ function baselinePathFor(deltaPath) {
 }
 
 /**
+ * Prints one document's violations under its heading line.
+ *
+ * @param {Object[]} violations - Violations to print.
+ */
+function report(violations) {
+  for (const item of violations) {
+    logger.info(`line ${item.line} [${item.rule}] ${item.message}`, { indent: true });
+  }
+}
+
+/**
  * Executes the delta validate command.
  *
  * @param {string} target - Delta document or directory to validate.
@@ -98,13 +109,28 @@ export async function deltaValidateCommand(target) {
 
   // 3. Check each against the spec it changes
   let total = 0;
+  const checkedBaselines = new Set();
   for (const delta of deltas) {
     const baselinePath = baselinePathFor(delta);
-    const baseline =
-      baselinePath && (await fs.pathExists(baselinePath)) ? await fs.readFile(baselinePath, 'utf8') : '';
+    const baselineExists = baselinePath && (await fs.pathExists(baselinePath));
+    const baseline = baselineExists ? await fs.readFile(baselinePath, 'utf8') : '';
+    const label = path.relative(workspace, delta) || delta;
+
+    // The delta rules read the baseline, so a malformed one makes them compare
+    // against less than it holds. It is reported under its own path, once
+    // however many deltas share it, so it is not mistaken for a delta fault.
+    if (baselineExists && !checkedBaselines.has(baselinePath)) {
+      checkedBaselines.add(baselinePath);
+      const baselineViolations = validateBaseline(baseline);
+      if (baselineViolations.length) {
+        total += baselineViolations.length;
+        const baselineLabel = path.relative(workspace, baselinePath) || baselinePath;
+        logger.error(`${baselineLabel} (baseline of ${label}): ${baselineViolations.length} violation(s)`);
+        report(baselineViolations);
+      }
+    }
 
     const violations = validateDelta(await fs.readFile(delta, 'utf8'), baseline);
-    const label = path.relative(workspace, delta) || delta;
 
     // 4. Report per document
     if (!violations.length) {
@@ -114,9 +140,7 @@ export async function deltaValidateCommand(target) {
 
     total += violations.length;
     logger.error(`${label}: ${violations.length} violation(s)`);
-    for (const item of violations) {
-      logger.info(`line ${item.line} [${item.rule}] ${item.message}`, { indent: true });
-    }
+    report(violations);
   }
 
   // 5. Report the run
