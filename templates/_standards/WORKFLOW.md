@@ -347,7 +347,7 @@ The result is written to `triage.md`, one row per finding, carrying `id`, `lens`
 
 **A gate does not own its rule.** It shortens a feedback loop. The conditions hold whether or not it fires, so a passing write means no block was raised, not that the conditions were checked. Because an undeclared or uninstalled gate fails silently, the Manager checks at initiation that the settings file declares it and that its script exists, and tells the User when either is missing; it cannot observe whether the running session registered the hook.
 
-**After compaction.** A second hook, a `SessionStart` hook matching `compact`, adds a notice to the model's context once the window has been compacted, and only for a session whose transcript shows a role skill. The notice names the recovery skill's file to be read and followed, because the model cannot invoke that skill, and tells a coordinator to reread the assignment step before writing a Task Bus. Output meant for the model goes through `additionalContext`; a `systemMessage` reaches only the person. It never blocks.
+**After compaction.** A second hook, a `SessionStart` hook matching `compact`, adds a notice to the model's context once the window has been compacted, and only for a session whose transcript shows a role skill. The notice states, as fact rather than command, where the recovery procedure is - a file to be read, because the model cannot invoke that skill - and that a coordinator rereads the assignment step and writes a Task Bus only with the `Write` tool. Output meant for the model goes through `additionalContext`; a `systemMessage` reaches only the person. It never blocks.
 
 ---
 

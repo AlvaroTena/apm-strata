@@ -11,7 +11,9 @@
 # The notice goes out as hookSpecificOutput.additionalContext, the only output
 # that reaches the model. A systemMessage is shown to the person and never
 # enters the context, and the recovery skill cannot be invoked by the model, so
-# the notice names its file to be read and followed instead.
+# the notice names its file to be read instead. It is worded as statements of
+# fact: the platform documentation advises against imperative text here, which
+# can trip the model's prompt-injection defenses.
 #
 # Whether the session ran a role skill is read from the transcript the payload
 # points at. A transcript is append-only, so the records from before the
@@ -48,7 +50,7 @@ cat <<'JSON'
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "The context window was just compacted. Before the next action, read .claude/skills/apm.recover/SKILL.md as a file and follow it. If you are the coordinator, also reread the assignment step before writing a Task Bus, and write the Task Bus only with the Write tool."
+    "additionalContext": "The context of this session was compacted. The APM recovery procedure is in .claude/skills/apm.recover/SKILL.md; it is read as a file because the model cannot invoke that skill. In APM, the coordinator rereads the assignment step after a compaction and writes the Task Bus only with the Write tool, which is the tool the dispatch gate checks."
   }
 }
 JSON

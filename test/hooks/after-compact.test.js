@@ -68,7 +68,16 @@ describe('after-compaction notice: a session that held a role', () => {
     expect(output.hookSpecificOutput.additionalContext).toContain(
       '.claude/skills/apm.recover/SKILL.md'
     );
+    expect(output.hookSpecificOutput.additionalContext).toContain('assignment step');
     expect(output.hookSpecificOutput.additionalContext).toContain('Write tool');
+  });
+
+  it('words the notice as statements of fact', () => {
+    const { stdout } = runHook({ transcript_path: path.join(fixtures, 'with-role.jsonl') });
+    const text = JSON.parse(stdout).hookSpecificOutput.additionalContext;
+
+    expect(text).not.toMatch(/\b(you|your|must|before answering)\b/i);
+    expect(text).not.toMatch(/(^|\. )(Read|Follow|Reread|Write|Run)\b/);
   });
 
   it.each(['apm.plan', 'apm.manage', 'apm.work'])('recognises a typed %s', async (role) => {
