@@ -490,11 +490,24 @@ Rules the merge follows, each of which a test pins:
   own handlers; an event keeps its other groups; `hooks` survives if anything
   is left in it.
 
-Verified against the Claude Code hooks reference for 2.1.263, and worth
+APM declares exactly two groups: `PreToolUse` with matcher `Write|Edit|Bash`
+towards the dispatch gate, and `SessionStart` with matcher `compact` towards
+the notice shown after a compaction.
+
+Earlier releases declared a `PreCompact` hook towards `apm-precompact.sh`. That
+script is retired and the declaration with it: install and `update` take it
+out, and `remove` and `archive` take it out if it is still there. Only the
+handler that runs that script goes; the user's own `PreCompact` and
+`SessionStart` hooks stay. A script that is retired later is added to
+`RETIRED_SCRIPTS` in `services/settings.js`.
+
+Verified against the Claude Code hooks reference for 2.1.304, and worth
 knowing before editing the declarations:
 
-- Event names are exact. `PreToolUse` takes a `matcher`; `PreCompact` has no
-  matcher support, so its group carries only `hooks`.
+- Event names are exact. `PreToolUse` matches on the tool name, so the gate's
+  `Bash` entry is what makes it see shell writes. `SessionStart` matches on how
+  the session started (`startup`, `resume`, `clear`, `compact`, `fork`);
+  `compact` fires after a compaction.
 - A handler with no `args` is shell form: the `command` string is passed to
   `sh -c`. `$CLAUDE_PROJECT_DIR` resolves the project root, so a hook works
   whatever the working directory is when it fires.

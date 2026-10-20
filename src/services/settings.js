@@ -28,9 +28,11 @@ const HOOKS_DIR = '.claude/apm-hooks';
 /**
  * Hook declarations APM installs.
  *
- * Verified against the Claude Code hooks reference for 2.1.263:
- * - `PreToolUse` takes a matcher; `PreCompact` has no matcher support, so its
- *   group carries only `hooks`.
+ * Verified against the Claude Code hooks reference for 2.1.304:
+ * - `PreToolUse` matches on the tool name, so the gate covers the file tools
+ *   and the shell.
+ * - `SessionStart` matches on how the session started; `compact` fires after
+ *   a compaction, when the model has just lost its context.
  * - A handler with no `args` is shell form: the command string goes to
  *   `sh -c`. The scripts are invoked through `sh` rather than by bare path
  *   because a hook must not depend on a mode bit surviving installation.
@@ -38,14 +40,22 @@ const HOOKS_DIR = '.claude/apm-hooks';
 const DECLARATIONS = [
   {
     event: 'PreToolUse',
-    matcher: 'Write|Edit',
+    matcher: 'Write|Edit|Bash',
     script: `${HOOKS_DIR}/apm-dispatch-gate.sh`
   },
   {
-    event: 'PreCompact',
-    script: `${HOOKS_DIR}/apm-precompact.sh`
+    event: 'SessionStart',
+    matcher: 'compact',
+    script: `${HOOKS_DIR}/apm-after-compact.sh`
   }
 ];
+
+/**
+ * Scripts earlier releases declared and the current one no longer ships.
+ * Installing and withdrawing both take their declarations out, so an update
+ * does not leave a hook pointing at a script that is gone.
+ */
+const RETIRED_SCRIPTS = [`${HOOKS_DIR}/apm-precompact.sh`];
 
 /**
  * Builds the command that runs a hook script.
@@ -80,6 +90,37 @@ function ownsScript(group, script) {
 }
 
 /**
+ * Takes the handlers that run any of the given scripts out of a list of
+ * matcher groups.
+ *
+ * A group shared with the user keeps its own handlers; a group left empty is
+ * dropped.
+ *
+ * @param {Array} groups - Matcher groups of one event.
+ * @param {string[]} scripts - Project-relative script paths to take out.
+ * @returns {Array} Groups without those handlers.
+ */
+function withoutScripts(groups, scripts) {
+  const kept = [];
+  for (const group of groups) {
+    if (!Array.isArray(group?.hooks)) {
+      kept.push(group);
+      continue;
+    }
+
+    const handlers = group.hooks.filter(
+      handler => !scripts.some(script => typeof handler?.command === 'string' && handler.command.includes(script))
+    );
+    if (handlers.length === group.hooks.length) {
+      kept.push(group);
+    } else if (handlers.length) {
+      kept.push({ ...group, hooks: handlers });
+    }
+  }
+  return kept;
+}
+
+/**
  * Builds the matcher group for one declaration.
  *
  * @param {Object} declaration - Declaration to render.
@@ -100,6 +141,19 @@ function groupFor({ matcher, script }) {
  */
 export function withApmHooks(settings = {}) {
   const merged = { ...settings, hooks: { ...(settings.hooks ?? {}) } };
+
+  // A retired declaration is withdrawn before the current ones are merged, and
+  // an event it leaves empty is pruned so the file does not keep a bare key.
+  for (const [event, groups] of Object.entries(merged.hooks)) {
+    if (!Array.isArray(groups)) continue;
+    const kept = withoutScripts(groups, RETIRED_SCRIPTS);
+    if (kept.length === groups.length && kept.every((group, i) => group === groups[i])) continue;
+    if (kept.length) {
+      merged.hooks[event] = kept;
+    } else {
+      delete merged.hooks[event];
+    }
+  }
 
   for (const declaration of DECLARATIONS) {
     const existing = Array.isArray(merged.hooks[declaration.event])
@@ -134,7 +188,7 @@ export function withApmHooks(settings = {}) {
 export function withoutApmHooks(settings = {}) {
   if (!settings.hooks || typeof settings.hooks !== 'object') return { ...settings };
 
-  const scripts = DECLARATIONS.map(declaration => declaration.script);
+  const scripts = [...DECLARATIONS.map(declaration => declaration.script), ...RETIRED_SCRIPTS];
   const hooks = {};
 
   for (const [event, groups] of Object.entries(settings.hooks)) {
@@ -143,23 +197,7 @@ export function withoutApmHooks(settings = {}) {
       continue;
     }
 
-    const kept = [];
-    for (const group of groups) {
-      if (!Array.isArray(group?.hooks)) {
-        kept.push(group);
-        continue;
-      }
-
-      const handlers = group.hooks.filter(
-        handler => !scripts.some(script => typeof handler?.command === 'string' && handler.command.includes(script))
-      );
-      if (handlers.length === group.hooks.length) {
-        kept.push(group);
-      } else if (handlers.length) {
-        kept.push({ ...group, hooks: handlers });
-      }
-    }
-
+    const kept = withoutScripts(groups, scripts);
     if (kept.length) hooks[event] = kept;
   }
 
