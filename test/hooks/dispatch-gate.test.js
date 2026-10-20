@@ -53,19 +53,25 @@ let project;
  *
  * @param {Object} toolInput - The tool_input object the payload carries.
  * @param {string} toolName - The tool being gated.
+ * @param {{cwd?: string, projectDir?: string}} options - The payload's working
+ *   directory (the project by default) and the CLAUDE_PROJECT_DIR to run under
+ *   (unset by default, whatever the surrounding environment holds).
  * @returns {{status: number, stderr: string}} Exit status and reason.
  */
-function runGate(toolInput, toolName = 'Write') {
+function runGate(toolInput, toolName = 'Write', options = {}) {
   const payload = JSON.stringify({
     session_id: 'test-session',
-    cwd: project,
+    cwd: options.cwd ?? project,
     hook_event_name: 'PreToolUse',
     tool_name: toolName,
     tool_input: toolInput
   });
 
   try {
-    execFileSync('sh', [gate], { input: payload, encoding: 'utf8', stdio: 'pipe' });
+    const env = { ...process.env };
+    delete env.CLAUDE_PROJECT_DIR;
+    if (options.projectDir) env.CLAUDE_PROJECT_DIR = options.projectDir;
+    execFileSync('sh', [gate], { input: payload, encoding: 'utf8', stdio: 'pipe', env });
     return { status: 0, stderr: '' };
   } catch (error) {
     return { status: error.status, stderr: error.stderr ?? '' };
@@ -531,5 +537,145 @@ describe('dispatch gate: absent checklists are a free pass', () => {
     );
 
     expect(dispatch().status).toBe(0);
+  });
+});
+
+const BUS_FILE = '.apm/bus/review-agent/task.md';
+
+/** Runs a Bash command through the gate and returns its verdict. */
+function runBash(command) {
+  return runGate({ command, description: 'test command' }, 'Bash');
+}
+
+describe('dispatch gate: Bash commands on the Task Bus', () => {
+  it.each([
+    ['a redirect from a heredoc', `cat > ${BUS_FILE} <<EOF\n---\nstage: 1\nEOF`],
+    ['an append redirect', `echo more >> ${BUS_FILE}`],
+    ['a redirect to a quoted path', `printf x > "$ROOT/${BUS_FILE}"`],
+    ['tee', `echo prompt | tee ${BUS_FILE}`],
+    ['tee with flags', `echo prompt | tee -a ${BUS_FILE}`],
+    ['cp onto it', `cp /tmp/prompt.md ${BUS_FILE}`],
+    ['mv onto it', `mv /tmp/prompt.md ${BUS_FILE}`],
+    ['install onto it', `install -m 644 /tmp/prompt.md ${BUS_FILE}`],
+    ['sed -i', `sed -i '' 's/a/b/' ${BUS_FILE}`],
+    ['sed -i with a suffix', `sed -i.bak 's/a/b/' ${BUS_FILE}`],
+    ['perl -pi', `perl -pi -e 's/a/b/' ${BUS_FILE}`],
+    ['truncate', `truncate -s 0 ${BUS_FILE}`],
+    ['dd of=', `dd if=/dev/null of=${BUS_FILE}`],
+    ['a python3 command that names it', `python3 -c "open('${BUS_FILE}', 'w').write('x')"`],
+    ['a python3 heredoc that names it', `python3 - <<'EOF'\nopen('${BUS_FILE}', 'w')\nEOF`],
+    ['node', `node -e "require('fs').writeFileSync('${BUS_FILE}', 'x')"`],
+    ['an absolute path', `echo x > /work/parcel-app/${BUS_FILE}`],
+    ['a command after a separator', `cd /work && sed -i s/a/b/ ${BUS_FILE}`]
+  ])('blocks %s', (_name, command) => {
+    const { status, stderr } = runBash(command);
+
+    expect(status).toBe(2);
+    expect(stderr).toContain('review-agent/task.md');
+    expect(stderr).toContain('Write or Edit tool');
+  });
+
+  it.each([
+    ['cat', `cat ${BUS_FILE}`],
+    ['head', `head -n 5 ${BUS_FILE}`],
+    ['tail', `tail -n 5 ${BUS_FILE}`],
+    ['wc', `wc -l ${BUS_FILE}`],
+    ['grep', `grep -n "Spec Deltas" ${BUS_FILE}`],
+    ['grep for a word that names a tool', `grep -n tee ${BUS_FILE} | head`],
+    ['grep for an interpreter name', `grep python ${BUS_FILE}`],
+    ['ls', `ls -la ${BUS_FILE}`],
+    ['test', `test -s ${BUS_FILE} && echo present`],
+    ['a bracket test', `[ -s ${BUS_FILE} ]`],
+    ['sed without -i', `sed -n 1,5p ${BUS_FILE}`],
+    ['cp with it as the source', `cp ${BUS_FILE} /tmp/copy.md`],
+    ['cat redirected elsewhere', `cat ${BUS_FILE} > /tmp/copy.md`]
+  ])('lets a read-only %s pass', (_name, command) => {
+    expect(runBash(command).status).toBe(0);
+  });
+
+  it('never blocks a command that does not name a Task Bus file', () => {
+    expect(runBash('echo hello > /tmp/out.txt').status).toBe(0);
+    expect(runBash('python3 -c "print(1)"').status).toBe(0);
+    expect(runBash('sed -i s/a/b/ src/index.js').status).toBe(0);
+    expect(runBash('echo task.md >> notes.txt').status).toBe(0);
+  });
+
+  it('does not watch the report or handoff files', () => {
+    expect(runBash('echo done > .apm/bus/review-agent/report.md').status).toBe(0);
+    expect(runBash('truncate -s 0 .apm/bus/review-agent/handoff.md').status).toBe(0);
+  });
+
+  it('blocks whatever the working directory and checklist state', async () => {
+    await writeChecklist(true);
+
+    const { status } = runGate(
+      { command: `tee ${BUS_FILE} < /tmp/prompt.md` },
+      'Bash',
+      { cwd: path.join(project, '.apm') }
+    );
+
+    expect(status).toBe(2);
+  });
+});
+
+describe('dispatch gate: project root', () => {
+  const DELTAS_PROMPT = TASK_PROMPT.replace(
+    'none - builds the settings screen from scratch',
+    '.apm/openspec/courier-settings/changes'
+  );
+
+  beforeEach(async () => {
+    await fs.ensureDir(path.join(project, '.apm', 'openspec', 'courier-settings', 'changes'));
+    await fs.ensureDir(path.join(project, '.apm', 'review'));
+  });
+
+  const dispatch = (options) =>
+    runGate(
+      {
+        file_path: path.join(project, '.apm', 'bus', 'review-agent', 'task.md'),
+        content: DELTAS_PROMPT
+      },
+      'Write',
+      options
+    );
+
+  it('finds a relative delta path with the payload directory in a subdirectory', () => {
+    const subdirectory = path.join(project, '.apm', 'review');
+
+    expect(dispatch({ cwd: subdirectory, projectDir: project }).status).toBe(0);
+  });
+
+  it('uses the payload directory as the root when CLAUDE_PROJECT_DIR is unset', () => {
+    expect(dispatch({ cwd: project }).status).toBe(0);
+  });
+
+  it('reads the checklists from the project root', async () => {
+    await writeChecklist(false);
+
+    const { status, stderr } = dispatch({
+      cwd: path.join(project, '.apm', 'review'),
+      projectDir: project
+    });
+
+    expect(status).toBe(2);
+    expect(stderr).toContain('Bundle snapshot refreshed');
+  });
+
+  it('still rejects a delta path that does not exist under the root', async () => {
+    await fs.remove(path.join(project, '.apm', 'openspec'));
+
+    const { status, stderr } = dispatch({
+      cwd: path.join(project, '.apm', 'review'),
+      projectDir: project
+    });
+
+    expect(status).toBe(2);
+    expect(stderr).toContain('does not exist as a directory');
+  });
+
+  it('falls back to the payload directory when CLAUDE_PROJECT_DIR is not a directory', () => {
+    expect(
+      dispatch({ cwd: project, projectDir: path.join(project, 'no-such-directory') }).status
+    ).toBe(0);
   });
 });

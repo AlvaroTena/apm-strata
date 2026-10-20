@@ -1,0 +1,4 @@
+{"type":"permission-mode","permissionMode":"default","sessionId":"fixture-role"}
+{"parentUuid":null,"isSidechain":false,"type":"user","message":{"role":"user","content":"<command-message>apm.manage</command-message>\n<command-name>/apm.manage</command-name>\n<command-args></command-args>"},"uuid":"u1","sessionId":"fixture-role"}
+{"parentUuid":"u1","isSidechain":false,"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_01","name":"Read","input":{"file_path":"/work/parcel-app/.claude/skills/apm-communication/SKILL.md"},"caller":{"type":"direct"}}]},"uuid":"a1","sessionId":"fixture-role"}
+{"parentUuid":"a1","isSidechain":false,"type":"system","subtype":"compact_boundary","content":"Conversation compacted","uuid":"s1","sessionId":"fixture-role"}

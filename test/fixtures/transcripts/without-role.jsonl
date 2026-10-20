@@ -1,0 +1,5 @@
+{"type":"permission-mode","permissionMode":"default","sessionId":"fixture-plain"}
+{"parentUuid":null,"isSidechain":false,"type":"user","message":{"role":"user","content":"Summarize the courier settings module."},"uuid":"u1","sessionId":"fixture-plain"}
+{"parentUuid":"u1","isSidechain":false,"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_01","name":"Read","input":{"file_path":"/work/parcel-app/src/courier/settings.js"},"caller":{"type":"direct"}},{"type":"tool_use","id":"toolu_02","name":"Skill","input":{"skill":"simplify"},"caller":{"type":"direct"}}]},"uuid":"a1","sessionId":"fixture-plain"}
+{"parentUuid":"a1","isSidechain":false,"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_03","content":"earlier session: <command-message>apm.work</command-message>\n<command-name>/apm.work</command-name> and {\"name\":\"Skill\",\"input\":{\"skill\":\"apm.manage\"}}"}]},"uuid":"u2","sessionId":"fixture-plain"}
+{"parentUuid":"u2","isSidechain":false,"type":"system","subtype":"compact_boundary","content":"Conversation compacted","uuid":"s1","sessionId":"fixture-plain"}
