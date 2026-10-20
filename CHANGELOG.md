@@ -15,8 +15,10 @@ of each adapted mechanic.
 
 This entry describes the fork as a whole against upstream. The fixes that acceptance called
 for were shipped in the pre-releases recorded below it, `[1.1.0-alpha.2]` and
-`[1.1.0-alpha.3]`. What changed after the last pre-release, including a mechanism `alpha.3`
-added and this release takes out again, is listed under *Since 1.1.0-alpha.3*.
+`[1.1.0-alpha.3]`, and in two more listed inside this entry. *Since 1.1.0-alpha.3* covers
+`1.1.0-alpha.4`, including a mechanism `alpha.3` added and `alpha.4` took out again.
+*Since 1.1.0-alpha.4* covers `1.1.0-alpha.5`, the candidate this release is promoted from.
+What acceptance found and this release does not change is under *Known Limitations*.
 
 ### Breaking Changes
 
@@ -56,11 +58,14 @@ added and this release takes out again, is listed under *Since 1.1.0-alpha.3*.
   the artifact; it triages verified findings. Findings carry exactly four fields and no
   severity.
 
-* **Two hooks.** A `PreToolUse` dispatch gate that blocks a write to a Task Bus file while a
-  checklist has an unchecked box or the Task is blocked by an open deferred item, and a
-  `PreCompact` reminder that points a compacted agent at the recovery skill. `apm init`,
+* **Two hooks.** A `PreToolUse` dispatch gate on `Write`, `Edit` and `Bash`. It blocks a
+  file-tool write to a Task Bus file while a checklist has an unchecked box, while the Task
+  is blocked by an open deferred item, or while the prompt has no valid `## Spec Deltas`
+  decision, and it blocks a shell command that writes a Task Bus file. A `SessionStart` hook
+  matching `compact`: in a session that ran a role skill, it adds to the model's context
+  that the session was compacted and where the recovery procedure is. `apm init`,
   `apm custom`, `apm add` and `apm update` declare them in `.claude/settings.json`;
-  `apm remove` withdraws them, leaving hooks of your own untouched.
+  `apm remove` and `apm archive` withdraw them, leaving hooks of your own untouched.
 
 * **Spec deltas.** `apm delta validate` checks `ADDED` / `MODIFIED` / `REMOVED` requirement
   blocks against the spec they change, enforcing four rules. The format comes from OpenSpec;
@@ -88,7 +93,7 @@ added and this release takes out again, is listed under *Since 1.1.0-alpha.3*.
 
 * **An archive explorer subagent** for pulling context out of archived sessions.
 
-* **A test suite**: 282 tests over the build, the CLI, the hooks and the template contracts,
+* **A test suite**: 343 tests over the build, the CLI, the hooks and the template contracts,
   where there was none.
 
 * **`docs/measurements.md`**, two measurement protocols for design claims that are currently
@@ -114,7 +119,8 @@ added and this release takes out again, is listed under *Since 1.1.0-alpha.3*.
 
 ### Upgrade Notes
 
-Two things an existing installation does not get on its own.
+What an existing installation does not get on its own, and what it keeps from a
+pre-release.
 
 * **The hook declarations do not arrive until you reinstall or update.** The bundle carries
   the hook scripts, but what makes the platform run them is a declaration in
@@ -138,9 +144,86 @@ Two things an existing installation does not get on its own.
   heading at the wrong depth, or a requirement without `SHALL` or `MUST`, fails the run until
   it is corrected.
 
+* **`apm update` replaces the hook declarations of a pre-release.** On an installation from
+  `1.1.0-alpha.4` or earlier, it replaces the dispatch gate's `Write|Edit` group with the
+  `Write|Edit|Bash` one, declares the `SessionStart` hook, and withdraws the `PreCompact`
+  declaration that pointed at the retired `apm-precompact.sh`. `apm remove` and
+  `apm archive` withdraw the current declarations and that old one alike. A hook you declared
+  yourself, under any event, is left as it is, including one that shares an event with ours.
+
+### Known Limitations
+
+What a real session on a candidate showed and this release does not change.
+
+* **A Worker may not validate the delta it receives.** The guide asks it to validate the
+  delta before reporting, and nothing enforces that: in one session, five of the 21 Workers
+  handed a delta never ran the validator. The coordinator validates every delta before
+  dispatch, so what can go unchecked is the Worker's own adjustment of it.
+
+* **Releasing a background session in a repository without a remote takes
+  `claude rm --discard-unpushed`.** `claude rm` refuses while the worktree's commits exist on
+  no remote, and prints the value the option needs. Forcing the worktree out instead, with
+  `git worktree unlock` and `git worktree remove --force`, removes the directory but leaves
+  the session registered: `claude agents --json --all` still lists it.
+
+* **Knowledge pages collide between sessions of the same project.** `apm knowledge emit`
+  names the page `wiki/apm/<project>/<stage>-<task>.md`, and stage and task numbers start
+  again in every session. Under the same project name, a later session's Task replaces the
+  earlier session's page and retires the claims it no longer carries. Under a new project
+  name, the page shares its basename with the earlier one, and the vault lint reports a
+  duplicate.
+
+* **The gate's shell branch matches text.** It recognises the usual ways of writing a file,
+  and it does not see a path assembled in a variable or an indirect write, such as a script
+  that writes the file without naming it. A command that starts `python`, `perl`, `node` or
+  `ruby` and names a Task Bus file is blocked even when it only reads it. Only `task.md` is
+  watched; the report and handoff files are not.
+
+* **The gate refuses two terminal steps the guides still describe.** Clearing a Task Bus
+  with `truncate -s 0` or a redirection, as the Worker's logging guide says to, is
+  refused. So is copying a prompt into a worktree mailbox with the file itself named as the
+  destination. Writing empty content with the Write tool clears the bus, and copying into
+  the mailbox directory, `.apm/bus/<slug>/`, passes.
+
+### Since 1.1.0-alpha.4
+
+First published as `1.1.0-alpha.5`, the candidate this stable release is promoted from once
+a real session has accepted it.
+
+#### Fixed
+
+* **The dispatch gate also guards the shell.** It is declared with the matcher
+  `Write|Edit|Bash`. A Bash command that names a Task Bus file and writes it is blocked with
+  a message that points at the Write and Edit tools. That covers a redirection, `tee`,
+  `cp`, `mv` or `install` with the file as destination, an in-place `sed` or `perl` edit,
+  `truncate`, `dd of=`, and an interpreter that names the file. A command that only reads
+  the file passes. In a real session on `alpha.4`, six of 91 Task Bus writes still went
+  through the shell although the guides forbade it, all after a context compaction with no
+  reread of the assignment step. Three of them reached their Worker without the
+  `## Spec Deltas` section the gate requires.
+
+* **A relative delta path is resolved against the project root.** The gate now resolves the
+  checklists, the Tracker and a relative `## Spec Deltas` path against
+  `CLAUDE_PROJECT_DIR`, and falls back to the session's working directory only when that
+  variable does not name a directory. On `alpha.4` it resolved them against wherever the session's shell stood, and it
+  refused a valid prompt because the coordinator's shell had been left in a subdirectory.
+
+#### Changed
+
+* **An after-compaction notice replaces the pre-compaction reminder.** `apm-precompact.sh`
+  and its `PreCompact` declaration are gone. Its `systemMessage` is shown to the person and
+  never reaches the model, and it asked for the recovery skill, which the model cannot
+  invoke. `apm-after-compact.sh`, a `SessionStart` hook matching `compact`, adds a notice to
+  the model's context. It fires only in a session whose transcript shows `apm.plan`,
+  `apm.manage` or `apm.work`. The notice says that the session was compacted, that the
+  recovery procedure is the file `.claude/skills/apm.recover/SKILL.md`, and that the
+  coordinator rereads the assignment step and writes the Task Bus with the Write tool. On
+  `alpha.4`, every shell write to the Task Bus came after a compaction.
+
 ### Since 1.1.0-alpha.3
 
-First published as `1.1.0-alpha.4`, the candidate this stable release is promoted from once a real session has accepted it.
+Published as `1.1.0-alpha.4`. A real session did not accept it as the candidate; what
+followed is under *Since 1.1.0-alpha.4*.
 
 #### Removed
 
