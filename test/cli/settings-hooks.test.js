@@ -33,7 +33,8 @@ const WORKSPACE = '/tmp/apm-settings-workspace';
 const SETTINGS = path.join(WORKSPACE, SETTINGS_FILE);
 
 const GATE = '.claude/apm-hooks/apm-dispatch-gate.sh';
-const PRECOMPACT = '.claude/apm-hooks/apm-precompact.sh';
+const AFTER_COMPACT = '.claude/apm-hooks/apm-after-compact.sh';
+const RETIRED = '.claude/apm-hooks/apm-precompact.sh';
 
 /**
  * Puts a settings document in the tree.
@@ -57,27 +58,55 @@ function commands(settings, event) {
 }
 
 describe('withApmHooks', () => {
-  it('declares the gate on PreToolUse with a Write|Edit matcher', () => {
+  it('declares the gate on PreToolUse with a Write|Edit|Bash matcher', () => {
     const merged = withApmHooks();
     const [group] = merged.hooks.PreToolUse;
 
-    expect(group.matcher).toBe('Write|Edit');
+    expect(group.matcher).toBe('Write|Edit|Bash');
     expect(group.hooks).toEqual([{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${GATE}"` }]);
   });
 
-  it('declares the pre-compaction hook without a matcher', () => {
-    // PreCompact has no matcher support; a matcher key here would be wrong.
-    const [group] = withApmHooks().hooks.PreCompact;
+  it('declares the after-compaction notice on SessionStart with a compact matcher', () => {
+    const [group] = withApmHooks().hooks.SessionStart;
 
-    expect(group).not.toHaveProperty('matcher');
-    expect(group.hooks[0].command).toContain(PRECOMPACT);
+    expect(group.matcher).toBe('compact');
+    expect(group.hooks).toEqual([{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${AFTER_COMPACT}"` }]);
+  });
+
+  it('declares exactly two groups and no PreCompact', () => {
+    const { hooks } = withApmHooks();
+
+    expect(Object.keys(hooks).sort()).toEqual(['PreToolUse', 'SessionStart']);
+    expect(hooks.PreToolUse).toHaveLength(1);
+    expect(hooks.SessionStart).toHaveLength(1);
   });
 
   it('invokes the scripts through sh rather than by bare path', () => {
     // A hook must not depend on a mode bit surviving installation.
-    for (const event of ['PreToolUse', 'PreCompact']) {
+    for (const event of ['PreToolUse', 'SessionStart']) {
       expect(commands(withApmHooks(), event)[0]).toMatch(/^sh "/);
     }
+  });
+
+  it('withdraws the retired PreCompact declaration and keeps the user\'s own', () => {
+    const merged = withApmHooks({
+      hooks: {
+        PreCompact: [
+          { hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${RETIRED}"` }] },
+          { hooks: [{ type: 'command', command: 'echo mine' }] }
+        ]
+      }
+    });
+
+    expect(commands(merged, 'PreCompact')).toEqual(['echo mine']);
+  });
+
+  it('drops the PreCompact key when the retired declaration was all it held', () => {
+    const merged = withApmHooks({
+      hooks: { PreCompact: [{ hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${RETIRED}"` }] }] }
+    });
+
+    expect(merged.hooks).not.toHaveProperty('PreCompact');
   });
 });
 
@@ -96,7 +125,8 @@ describe('installApmHooks', () => {
 
     const settings = read();
     expect(commands(settings, 'PreToolUse')).toEqual([`sh "$CLAUDE_PROJECT_DIR/${GATE}"`]);
-    expect(commands(settings, 'PreCompact')).toEqual([`sh "$CLAUDE_PROJECT_DIR/${PRECOMPACT}"`]);
+    expect(commands(settings, 'SessionStart')).toEqual([`sh "$CLAUDE_PROJECT_DIR/${AFTER_COMPACT}"`]);
+    expect(settings.hooks).not.toHaveProperty('PreCompact');
   });
 
   it('writes a trailing newline and two-space indentation', async () => {
@@ -139,12 +169,55 @@ describe('installApmHooks', () => {
     }
   });
 
-  it('keeps foreign hooks on events it does not touch', async () => {
+  it('keeps a foreign SessionStart hook beside its own', async () => {
     seed({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'echo start' }] }] } });
 
     await installApmHooks(WORKSPACE);
 
-    expect(commands(read(), 'SessionStart')).toEqual(['echo start']);
+    expect(commands(read(), 'SessionStart')).toEqual(['echo start', `sh "$CLAUDE_PROJECT_DIR/${AFTER_COMPACT}"`]);
+  });
+
+  it('keeps foreign hooks on events it does not touch', async () => {
+    seed({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo stop' }] }] } });
+
+    await installApmHooks(WORKSPACE);
+
+    expect(commands(read(), 'Stop')).toEqual(['echo stop']);
+  });
+
+  it('updates an alpha.4 installation in place and leaves foreign hooks intact', async () => {
+    const foreign = {
+      PreToolUse: { matcher: 'Write|Edit', hooks: [{ type: 'command', command: 'sh ~/.mytool/pre.sh' }] },
+      PreCompact: { hooks: [{ type: 'command', command: 'echo user precompact' }] },
+      SessionStart: { hooks: [{ type: 'command', command: 'echo start' }] }
+    };
+    seed({
+      hooks: {
+        PreToolUse: [
+          foreign.PreToolUse,
+          { matcher: 'Write|Edit', hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${GATE}"` }] }
+        ],
+        PreCompact: [
+          { hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${RETIRED}"` }] },
+          foreign.PreCompact
+        ],
+        SessionStart: [foreign.SessionStart]
+      }
+    });
+
+    expect(await installApmHooks(WORKSPACE)).toBe(true);
+
+    const { hooks } = read();
+    expect(hooks.PreToolUse).toEqual([
+      foreign.PreToolUse,
+      { matcher: 'Write|Edit|Bash', hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${GATE}"` }] }
+    ]);
+    expect(hooks.PreCompact).toEqual([foreign.PreCompact]);
+    expect(hooks.SessionStart).toEqual([
+      foreign.SessionStart,
+      { matcher: 'compact', hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${AFTER_COMPACT}"` }] }
+    ]);
+    expect(await installApmHooks(WORKSPACE)).toBe(false);
   });
 
   it('does not duplicate its entries on a second install', async () => {
@@ -172,7 +245,7 @@ describe('installApmHooks', () => {
     const groups = read().hooks.PreToolUse;
     expect(groups).toHaveLength(2);
     expect(groups[1]).toEqual({
-      matcher: 'Write|Edit',
+      matcher: 'Write|Edit|Bash',
       hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${GATE}"` }]
     });
   });
@@ -242,6 +315,18 @@ describe('removeApmHooks', () => {
     });
 
     expect(stripped.hooks.PreToolUse[0].hooks).toEqual([{ type: 'command', command: 'sh ~/.mytool/pre.sh' }]);
+  });
+
+  it('withdraws both current declarations and the retired one', () => {
+    const stripped = withoutApmHooks({
+      hooks: {
+        PreToolUse: [{ matcher: 'Write|Edit|Bash', hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${GATE}"` }] }],
+        SessionStart: [{ matcher: 'compact', hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${AFTER_COMPACT}"` }] }],
+        PreCompact: [{ hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${RETIRED}"` }] }]
+      }
+    });
+
+    expect(stripped).toEqual({});
   });
 
   it('leaves a file that never had its entries alone', async () => {

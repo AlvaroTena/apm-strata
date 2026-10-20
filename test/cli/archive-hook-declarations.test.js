@@ -58,8 +58,9 @@ const { updateCommand } = await import('../../src/commands/update.js');
 const { installApmHooks } = await import('../../src/services/settings.js');
 
 const GATE = '.claude/apm-hooks/apm-dispatch-gate.sh';
-const PRECOMPACT = '.claude/apm-hooks/apm-precompact.sh';
-const HOOK_FILES = [GATE, PRECOMPACT];
+const AFTER_COMPACT = '.claude/apm-hooks/apm-after-compact.sh';
+const RETIRED = '.claude/apm-hooks/apm-precompact.sh';
+const HOOK_FILES = [GATE, AFTER_COMPACT];
 
 /**
  * Settings a project carries on its own: a hook on the same event and matcher
@@ -161,6 +162,22 @@ describe('apm archive and the hook declarations', () => {
     }
   });
 
+  it('also withdraws a retired PreCompact declaration left by an earlier release', async () => {
+    await seedInstallation();
+    await seedSettings({
+      ...FOREIGN,
+      hooks: {
+        ...FOREIGN.hooks,
+        PreCompact: [{ hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${RETIRED}"` }] }]
+      }
+    });
+    await installApmHooks(cwd);
+
+    await archiveCommand({ force: true, name: 'session-test-001' });
+
+    expect(await readSettings()).toEqual(FOREIGN);
+  });
+
   it('says in its output that the settings file changed', async () => {
     await seedInstallation();
     await installApmHooks(cwd);
@@ -201,7 +218,7 @@ describe('apm archive and the hook declarations', () => {
 
     const settings = await readSettings();
     expect(declarationsOf(settings, GATE)).toBe(1);
-    expect(declarationsOf(settings, PRECOMPACT)).toBe(1);
+    expect(declarationsOf(settings, AFTER_COMPACT)).toBe(1);
     expect(allCommands(settings)).toEqual(expect.arrayContaining(allCommands(FOREIGN)));
   });
 
@@ -269,9 +286,39 @@ describe('apm update and the hook declarations', () => {
 
     const settings = await readSettings();
     expect(declarationsOf(settings, GATE)).toBe(1);
-    expect(declarationsOf(settings, PRECOMPACT)).toBe(1);
+    expect(declarationsOf(settings, AFTER_COMPACT)).toBe(1);
     expect(allCommands(settings)).toEqual(expect.arrayContaining(allCommands(FOREIGN)));
     expect(await fs.pathExists(at(GATE))).toBe(true);
+  });
+
+  it('moves an alpha.4 installation to the new declarations', async () => {
+    givenNewerRelease({ withBundle: true });
+    await seedInstallation();
+    await seedSettings({
+      ...FOREIGN,
+      hooks: {
+        PreToolUse: [
+          ...FOREIGN.hooks.PreToolUse,
+          { matcher: 'Write|Edit', hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${GATE}"` }] }
+        ],
+        SessionStart: FOREIGN.hooks.SessionStart,
+        PreCompact: [
+          { hooks: [{ type: 'command', command: `sh "$CLAUDE_PROJECT_DIR/${RETIRED}"` }] },
+          { hooks: [{ type: 'command', command: 'echo user precompact' }] }
+        ]
+      }
+    });
+
+    await updateCommand({ force: true, name: 'session-test-001' });
+
+    const settings = await readSettings();
+    expect(settings.hooks.PreToolUse.map(group => group.matcher)).toEqual(['Write|Edit', 'Write|Edit|Bash']);
+    expect(declarationsOf(settings, GATE)).toBe(1);
+    expect(declarationsOf(settings, AFTER_COMPACT)).toBe(1);
+    expect(declarationsOf(settings, RETIRED)).toBe(0);
+    expect(allCommands(settings)).toEqual(
+      expect.arrayContaining(['sh ~/.mytool/pre.sh', 'echo start', 'echo user precompact'])
+    );
   });
 
   it('withdraws the declarations when no bundle came back', async () => {

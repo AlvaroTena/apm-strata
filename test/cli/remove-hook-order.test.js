@@ -36,7 +36,7 @@ vi.mock('../../src/ui/logger.js', () => {
 const { removeCommand } = await import('../../src/commands/remove.js');
 const { installApmHooks } = await import('../../src/services/settings.js');
 
-const HOOK_FILES = ['.claude/apm-hooks/apm-dispatch-gate.sh', '.claude/apm-hooks/apm-precompact.sh'];
+const HOOK_FILES = ['.claude/apm-hooks/apm-dispatch-gate.sh', '.claude/apm-hooks/apm-after-compact.sh'];
 const FOREIGN = {
   permissions: { allow: ['Bash(npm test)'] },
   hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'echo start' }] }] }
@@ -107,6 +107,31 @@ describe('apm remove and the hook declarations', () => {
     const metadata = await fs.readJson(at('.apm/metadata.json'));
     expect(metadata.assistants).toEqual([]);
     expect(metadata.installedFiles).not.toHaveProperty('claude');
+    expect(await fs.readJson(at('.claude/settings.json'))).toEqual(FOREIGN);
+  });
+
+  it('withdraws a retired PreCompact declaration along with the current ones', async () => {
+    await seedInstallation();
+    await fs.writeFile(
+      at('.claude/settings.json'),
+      `${JSON.stringify(
+        {
+          ...FOREIGN,
+          hooks: {
+            ...FOREIGN.hooks,
+            PreCompact: [
+              { hooks: [{ type: 'command', command: 'sh "$CLAUDE_PROJECT_DIR/.claude/apm-hooks/apm-precompact.sh"' }] }
+            ]
+          }
+        },
+        null,
+        2
+      )}\n`
+    );
+    await installApmHooks(cwd);
+
+    await removeCommand({ assistant: ['claude'], force: true });
+
     expect(await fs.readJson(at('.claude/settings.json'))).toEqual(FOREIGN);
   });
 });
