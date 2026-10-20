@@ -38,7 +38,7 @@ The template ships four kinds of file, and every mechanism below names the ones 
 | Support skill | `apm-communication`, read by every role rather than invoked by any. |
 | Guides | Procedural documents, one reading agent each: `context-gathering`, `work-breakdown`, `task-assignment`, `task-execution`, `task-logging`, `task-review`. |
 | Agents | The archive explorer and the five review lenses, spawned as subagents. |
-| Hooks | Two scripts registered in the project's settings: the dispatch gate and the pre-compaction reminder. |
+| Hooks | Two scripts registered in the project's settings: the dispatch gate and the after-compaction notice. |
 
 There is no command category. The numbered commands became role skills; `templates/commands/` no longer exists.
 
@@ -335,11 +335,11 @@ The result is written to `triage.md`, one row per finding, carrying `id`, `lens`
 
 ## 10. Mechanical Gates
 
-**Runtime:** `hooks/apm-dispatch-gate.sh`, `hooks/apm-precompact.sh`, `skills/apm.manage/references/hooks-frontmatter.md`, `guides/work-breakdown.md` §4.4
+**Runtime:** `hooks/apm-dispatch-gate.sh`, `hooks/apm-after-compact.sh`, `skills/apm.manage/references/hooks-frontmatter.md`, `guides/work-breakdown.md` §4.4
 
 **Checklists.** At the Spec and Plan approval gates the Planner writes a requirement quality checklist of five to eight items, each a question about the quality of what the document says, carrying its dimension and the section it points at. `[x]` means a human confirmed the criterion, never that implementation is done, and no agent marks a box - an agent marking its own work removes the only signal the checklist carries.
 
-**The dispatch gate.** A `PreToolUse` hook on write operations refuses a write to a Task Bus file while a checklist has an unmarked box, while an open deferred item names the Task being dispatched as blocked, or while the Task Prompt has no valid `## Spec Deltas` decision. It exits non-zero to block and its stderr becomes the reason, so every refusal names the specific item. Nothing else is gated.
+**The dispatch gate.** A `PreToolUse` hook on `Write`, `Edit` and `Bash` refuses a write to a Task Bus file while a checklist has an unmarked box, while an open deferred item names the Task being dispatched as blocked, or while the Task Prompt has no valid `## Spec Deltas` decision. It exits non-zero to block and its stderr becomes the reason, so every refusal names the specific item. A shell command that writes the Task Bus is refused outright, because the shell exposes no content to check; the Task Bus is written with the file tools. That branch matches the command text and is not an analysis of the shell, so it narrows the route rather than sealing it. Project paths resolve against the project root, not the shell's directory. Nothing else is gated.
 
 **Where hooks are declared.** In the project's settings file, installed by the CLI - never in a skill's frontmatter. Frontmatter registration happens when the skill is invoked and lives in the process, so a session resumed into a new process would carry no gate until something reinvoked the skill, which is exactly what a resuming coordinator does not do. A gate that disarms without saying so is worse than no gate. The consequence accepted is that the hook is project-scoped rather than role-scoped, which is harmless: it only guards a file that only a coordinator writes.
 
@@ -347,7 +347,7 @@ The result is written to `triage.md`, one row per finding, carrying `id`, `lens`
 
 **A gate does not own its rule.** It shortens a feedback loop. The conditions hold whether or not it fires, so a passing write means no block was raised, not that the conditions were checked. Because an undeclared or uninstalled gate fails silently, the Manager checks at initiation that the settings file declares it and that its script exists, and tells the User when either is missing; it cannot observe whether the running session registered the hook.
 
-**Pre-compaction.** A second hook leaves a reminder to run recovery once the context window has been compacted. It never blocks.
+**After compaction.** A second hook, a `SessionStart` hook matching `compact`, adds a notice to the model's context once the window has been compacted, and only for a session whose transcript shows a role skill. The notice states, as fact rather than command, where the recovery procedure is - a file to be read, because the model cannot invoke that skill - and that a coordinator rereads the assignment step and writes a Task Bus only with the `Write` tool. Output meant for the model goes through `additionalContext`; a `systemMessage` reaches only the person. It never blocks.
 
 ---
 
@@ -407,7 +407,7 @@ An incoming Manager reads the Handoff Log, the Tracker, the Index and relevant r
 
 ### 13.2 Recovery
 
-**Runtime:** `skills/apm.recover/SKILL.md`, `hooks/apm-precompact.sh`
+**Runtime:** `skills/apm.recover/SKILL.md`, `hooks/apm-after-compact.sh`
 
 Recovery reconstructs context after compaction or a lost conversation. The agent re-reads its initiation skill, follows its document loading instructions, then explores project artifacts to rebuild operational state. Recovery does not create a new instance. The agent notes it in its next report and in its eventual Handoff Log.
 

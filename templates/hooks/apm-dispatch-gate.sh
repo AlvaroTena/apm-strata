@@ -2,15 +2,18 @@
 #
 # APM dispatch gate.
 #
-# A PreToolUse hook for Write and Edit. It blocks a write to a Task Bus file
-# (.apm/bus/<agent>/task.md) while any of three conditions holds:
+# A PreToolUse hook for Write, Edit and Bash. It blocks a write to a Task Bus
+# file (.apm/bus/<agent>/task.md) while any of three conditions holds:
 #
 #   - a checklist under .apm/checklists/ has an unchecked box;
 #   - the Task being dispatched is blocked by an open deferred item in the
 #     Tracker's Deferred table;
 #   - the Task Prompt has no valid "## Spec Deltas" decision.
 #
-# Writing any other file never blocks. Exit 2 blocks the tool call and the
+# A Bash command that writes the Task Bus is blocked outright: the shell offers
+# no content the conditions could be read from, so the Task Bus is written with
+# the Write or Edit tool, where the gate can check it. Writing any other file,
+# and running any other command, never blocks. Exit 2 blocks the tool call and the
 # stderr text below becomes the reason the model is given, so every message
 # names the checklist item, the deferred item or the Spec Deltas defect that
 # caused the block - a block that does not say why forces an investigation,
@@ -81,6 +84,61 @@ json_string() {
   '
 }
 
+# A Bash command that writes the Task Bus. This is text matching on the command
+# string, not an analysis of the shell: it recognises the usual ways of writing
+# a file and cannot see a path assembled in a variable or an indirect write. A
+# read-only command on the file passes, and a command that does not name a Task
+# Bus file never blocks. The report and handoff files are not watched.
+#
+# The interpreter rule fires on any command that starts an interpreter and names
+# the file anywhere, because the write happens inside code the gate cannot read.
+# Newlines are folded into ";" so a multi-line command is matched as one string.
+block_bash_task_bus_write() {
+  command=$(json_string command tool_input | tr '\n' ';')
+  [ -n "$command" ] || return 0
+
+  sq="'"
+  quote="[\"${sq}]?"
+  path="[^[:space:];|&<>()\"${sq}]*\.apm/bus/[^/[:space:];|&<>()\"${sq}]+/task\.md"
+  segment="[^|;&]*"
+  # A word counts as a command only at the start of a command: after a
+  # separator, optionally behind variable assignments, sudo, env, command or exec,
+  # and optionally spelled with a directory. "grep tee file" does not run tee.
+  boundary="(^|[;&|(]|\\$\\()[[:space:]]*"
+  prefixes="(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*|sudo|env|command|exec)[[:space:]]+)*([^[:space:];|&()]*/)?"
+  cmd="${boundary}${prefixes}"
+
+  printf '%s' "$command" | grep -Eq "${path}" || return 0
+
+  writes=""
+  for pattern in \
+    ">[>|]?[[:space:]]*${quote}${path}" \
+    "${cmd}tee[[:space:]]${segment}${path}" \
+    "${cmd}(cp|mv|install)[[:space:]]${segment}[[:space:]]${quote}${path}${quote}[[:space:]]*(\$|[;&|)])" \
+    "${cmd}(sed|perl)[[:space:]]+(${segment}[[:space:]])?(-[A-Za-z]*i[^[:space:]]*|--in-place[^[:space:]]*)[[:space:]]${segment}${path}" \
+    "${cmd}truncate[[:space:]]${segment}${path}" \
+    "${cmd}dd[[:space:]]${segment}of=${quote}${path}" \
+    "${cmd}(python[0-9.]*|perl|node|ruby)[[:space:]]"
+  do
+    if printf '%s' "$command" | grep -Eq "$pattern"; then
+      writes="yes"
+      break
+    fi
+  done
+  [ -n "$writes" ] || return 0
+
+  named=$(printf '%s' "$command" | grep -Eo "${path}" | head -n 1)
+  printf 'APM dispatch gate: this command writes %s from the shell and is blocked.\n\n' "$named" >&2
+  printf 'The Task Bus is written with the Write or Edit tool, so that the gate can check the Task Prompt before it is dispatched. Write the file with that tool instead.\n' >&2
+  exit 2
+}
+
+tool_name=$(json_string tool_name)
+if [ "$tool_name" = "Bash" ]; then
+  block_bash_task_bus_write
+  exit 0
+fi
+
 file_path=$(json_string file_path tool_input)
 [ -n "$file_path" ] || exit 0
 
@@ -96,11 +154,23 @@ case "$agent_slug" in
   "" | */*) exit 0 ;;
 esac
 
-# Project paths resolve against the session's working directory when the payload
-# carries a usable one, and against the current directory otherwise.
-hook_cwd=$(json_string cwd)
-if [ -n "$hook_cwd" ] && [ -d "$hook_cwd" ]; then
-  cd "$hook_cwd" || exit 0
+# Project paths - the checklists, the Tracker and a relative Spec Deltas path -
+# resolve against the project root: CLAUDE_PROJECT_DIR when it names a directory,
+# else the payload's working directory, else the current directory. The payload's
+# directory follows the session's shell, so a coordinator whose shell sits in a
+# subdirectory would otherwise see a valid relative path as missing. An absolute
+# path is unaffected by where the hook stands.
+project_root=""
+if [ -n "${CLAUDE_PROJECT_DIR-}" ] && [ -d "$CLAUDE_PROJECT_DIR" ]; then
+  project_root=$CLAUDE_PROJECT_DIR
+else
+  hook_cwd=$(json_string cwd)
+  if [ -n "$hook_cwd" ] && [ -d "$hook_cwd" ]; then
+    project_root=$hook_cwd
+  fi
+fi
+if [ -n "$project_root" ]; then
+  cd "$project_root" || exit 0
 fi
 
 # Reports whether the tool input carries `key` at all, whatever its value. An

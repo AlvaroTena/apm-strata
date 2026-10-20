@@ -206,7 +206,7 @@ A lens agent additionally states the shape of a finding it returns and the instr
 
 ## 5. Hook Structure
 
-Hooks are executable scripts, not prose. Two ship with the template: the dispatch gate and the pre-compaction reminder.
+Hooks are executable scripts, not prose. Two ship with the template: the dispatch gate and the after-compaction notice.
 
 **Source and emission.** Sources live in `templates/hooks/<name>.sh` and are emitted into the bundle under the config directory's `apm-hooks/`. They are POSIX `sh` with no dependency beyond the shell and the standard text utilities, and they are invoked through `sh` so they do not depend on an execute bit surviving installation.
 
