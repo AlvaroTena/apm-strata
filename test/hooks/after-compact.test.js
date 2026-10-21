@@ -69,7 +69,7 @@ describe('after-compaction notice: a session that held a role', () => {
       '.claude/skills/apm.recover/SKILL.md'
     );
     expect(output.hookSpecificOutput.additionalContext).toContain('assignment step');
-    expect(output.hookSpecificOutput.additionalContext).toContain('Write tool');
+    expect(output.hookSpecificOutput.additionalContext).toContain('Write or Edit tool');
   });
 
   it('words the notice as statements of fact', () => {
