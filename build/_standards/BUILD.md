@@ -190,8 +190,8 @@ claude.zip/
       apm-lens-adversarial.md
       ...
     apm-hooks/
+      apm-after-compact.sh
       apm-dispatch-gate.sh
-      apm-precompact.sh
 ```
 
 Skills keep whatever layout they have below `templates/skills/`, so a skill's
