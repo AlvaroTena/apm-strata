@@ -93,7 +93,7 @@ What acceptance found and this release does not change is under *Known Limitatio
 
 * **An archive explorer subagent** for pulling context out of archived sessions.
 
-* **A test suite**: 343 tests over the build, the CLI, the hooks and the template contracts,
+* **A test suite**: 363 tests over the build, the CLI, the hooks and the template contracts,
   where there was none.
 
 * **`docs/measurements.md`**, two measurement protocols for design claims that are currently
@@ -173,17 +173,18 @@ What a real session on a candidate showed and this release does not change.
   name, the page shares its basename with the earlier one, and the vault lint reports a
   duplicate.
 
-* **The gate's shell branch matches text.** It recognises the usual ways of writing a file,
-  and it does not see a path assembled in a variable or an indirect write, such as a script
-  that writes the file without naming it. A command that starts `python`, `perl`, `node` or
-  `ruby` and names a Task Bus file is blocked even when it only reads it. Only `task.md` is
-  watched; the report and handoff files are not.
+* **The gate's shell branch matches text.** It recognises the usual ways of writing a file.
+  It does not see a path assembled in a variable, or an indirect write such as a script that
+  writes the file without naming it. Nor does it see a copy whose destination is a bus
+  directory, `.apm/bus/<slug>/`, rather than the file, whatever the source. A command that
+  starts `python`, `perl`, `node` or `ruby` and names a Task Bus file is blocked even when
+  it only reads it. Only `task.md` is watched; the report and handoff files are not.
 
-* **The gate refuses two terminal steps the guides still describe.** Clearing a Task Bus
-  with `truncate -s 0` or a redirection, as the Worker's logging guide says to, is
-  refused. So is copying a prompt into a worktree mailbox with the file itself named as the
-  destination. Writing empty content with the Write tool clears the bus, and copying into
-  the mailbox directory, `.apm/bus/<slug>/`, passes.
+* **A copy between Task Bus files is not checked again.** The gate lets through `cp` or
+  `install` whose source is a Task Bus file, without reading what it copies. The source has
+  either passed the gate in the shared bus or is a worktree mailbox. A legitimate copy is
+  still blocked when it names its destination with `-t` or quotes a path that contains a
+  space.
 
 ### Since 1.1.0-alpha.4
 
@@ -197,16 +198,23 @@ a real session has accepted it.
   a message that points at the Write and Edit tools. That covers a redirection, `tee`,
   `cp`, `mv` or `install` with the file as destination, an in-place `sed` or `perl` edit,
   `truncate`, `dd of=`, and an interpreter that names the file. A command that only reads
-  the file passes. In a real session on `alpha.4`, six of 91 Task Bus writes still went
-  through the shell although the guides forbade it, all after a context compaction with no
-  reread of the assignment step. Three of them reached their Worker without the
-  `## Spec Deltas` section the gate requires.
+  the file passes. Two writes the Task cycle needs also pass:
+  - `truncate -s 0` (or `--size=0`) on a Task Bus file, which empties it;
+  - `cp` or `install` whose source is a Task Bus file, to a file or a directory, which
+    copies a checked prompt into a worktree mailbox or an emptied mailbox back.
+
+  Any other size, any other source, `mv`, an empty redirection, and a compound command that
+  also carries a blocked write are still refused. In a real session on `alpha.4`, six of 91
+  Task Bus writes still went through the shell although the guides forbade it, all after a
+  context compaction with no reread of the assignment step. Three of them reached their
+  Worker without the `## Spec Deltas` section the gate requires.
 
 * **A relative delta path is resolved against the project root.** The gate now resolves the
   checklists, the Tracker and a relative `## Spec Deltas` path against
   `CLAUDE_PROJECT_DIR`, and falls back to the session's working directory only when that
-  variable does not name a directory. On `alpha.4` it resolved them against wherever the session's shell stood, and it
-  refused a valid prompt because the coordinator's shell had been left in a subdirectory.
+  variable does not name a directory. On `alpha.4` it resolved them against wherever the
+  session's shell stood, and it refused a valid prompt because the coordinator's shell had
+  been left in a subdirectory.
 
 #### Changed
 
@@ -217,8 +225,8 @@ a real session has accepted it.
   the model's context. It fires only in a session whose transcript shows `apm.plan`,
   `apm.manage` or `apm.work`. The notice says that the session was compacted, that the
   recovery procedure is the file `.claude/skills/apm.recover/SKILL.md`, and that the
-  coordinator rereads the assignment step and writes the Task Bus with the Write tool. On
-  `alpha.4`, every shell write to the Task Bus came after a compaction.
+  coordinator rereads the assignment step and writes the Task Bus with the Write or Edit
+  tool. On `alpha.4`, every shell write to the Task Bus came after a compaction.
 
 ### Since 1.1.0-alpha.3
 
