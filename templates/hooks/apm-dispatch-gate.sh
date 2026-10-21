@@ -90,6 +90,19 @@ json_string() {
 # read-only command on the file passes, and a command that does not name a Task
 # Bus file never blocks. The report and handoff files are not watched.
 #
+# Two commands are let through because the Task cycle needs them and neither
+# opens a way to write a Task Prompt the gate has not seen:
+#
+#   - truncate to size zero, which empties a Task Bus. A redirect with no
+#     content cannot be told reliably from a write, so it stays blocked;
+#   - cp or install whose source is itself a Task Bus file, to a file or a
+#     directory. That copies a prompt the gate already checked in the shared
+#     bus into a worktree mailbox, or reflects an emptied mailbox back out.
+#
+# Both are removed from the command before the write patterns run, so any other
+# write in the same compound command is still seen and blocks it. A copy from any
+# other source, and mv, stay blocked.
+#
 # The interpreter rule fires on any command that starts an interpreter and names
 # the file anywhere, because the write happens inside code the gate cannot read.
 # Newlines are folded into ";" so a multi-line command is matched as one string.
@@ -110,6 +123,11 @@ block_bash_task_bus_write() {
 
   printf '%s' "$command" | grep -Eq "${path}" || return 0
 
+  end="[[:space:]]*(\$|[;&|)])"
+  clear_bus="${cmd}truncate([[:space:]]+-c)?[[:space:]]+(-s[[:space:]]*0|--size(=|[[:space:]]+)0)[[:space:]]+${quote}${path}${quote}${end}"
+  copy_bus="${cmd}(cp|install)([[:space:]]+-[^[:space:]]*([[:space:]]+[0-9]+)?)*[[:space:]]+${quote}${path}${quote}[[:space:]]+${quote}[^[:space:];|&<>()\"${sq}]+${quote}${end}"
+  remaining=$(printf '%s' "$command" | sed -E "s#${clear_bus}#;#g; s#${copy_bus}#;#g")
+
   writes=""
   for pattern in \
     ">[>|]?[[:space:]]*${quote}${path}" \
@@ -120,7 +138,7 @@ block_bash_task_bus_write() {
     "${cmd}dd[[:space:]]${segment}of=${quote}${path}" \
     "${cmd}(python[0-9.]*|perl|node|ruby)[[:space:]]"
   do
-    if printf '%s' "$command" | grep -Eq "$pattern"; then
+    if printf '%s' "$remaining" | grep -Eq "$pattern"; then
       writes="yes"
       break
     fi

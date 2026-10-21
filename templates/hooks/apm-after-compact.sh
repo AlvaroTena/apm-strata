@@ -50,7 +50,7 @@ cat <<'JSON'
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "The context of this session was compacted. The APM recovery procedure is in .claude/skills/apm.recover/SKILL.md; it is read as a file because the model cannot invoke that skill. In APM, the coordinator rereads the assignment step after a compaction and writes the Task Bus only with the Write tool, which is the tool the dispatch gate checks."
+    "additionalContext": "The context of this session was compacted. The APM recovery procedure is in .claude/skills/apm.recover/SKILL.md; it is read as a file because the model cannot invoke that skill. In APM, the coordinator rereads the assignment step after a compaction and writes the Task Bus only with the Write or Edit tool, which are the tools the dispatch gate checks."
   }
 }
 JSON
