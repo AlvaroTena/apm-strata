@@ -560,7 +560,15 @@ describe('dispatch gate: Bash commands on the Task Bus', () => {
     ['sed -i', `sed -i '' 's/a/b/' ${BUS_FILE}`],
     ['sed -i with a suffix', `sed -i.bak 's/a/b/' ${BUS_FILE}`],
     ['perl -pi', `perl -pi -e 's/a/b/' ${BUS_FILE}`],
-    ['truncate', `truncate -s 0 ${BUS_FILE}`],
+    ['truncate to a size above zero', `truncate -s 10 ${BUS_FILE}`],
+    ['truncate with a long size above zero', `truncate --size=10 ${BUS_FILE}`],
+    ['mv between buses', `mv /w/${BUS_FILE} ${BUS_FILE}`],
+    ['an empty redirect', `: > ${BUS_FILE}`],
+    ['cp from a file outside the bus', `cp /tmp/p.md ${BUS_FILE}`],
+    ['install from a file outside the bus', `install /tmp/p.md ${BUS_FILE}`],
+    ['an allowed copy followed by a blocked write', `cp ${BUS_FILE} /w/${BUS_FILE} && echo hi > ${BUS_FILE}`],
+    ['an allowed clear followed by a blocked write', `truncate -s 0 ${BUS_FILE}; tee ${BUS_FILE} < /tmp/p.md`],
+    ['a copy that redirects into the bus', `cp ${BUS_FILE} /w/ > ${BUS_FILE}`],
     ['dd of=', `dd if=/dev/null of=${BUS_FILE}`],
     ['a python3 command that names it', `python3 -c "open('${BUS_FILE}', 'w').write('x')"`],
     ['a python3 heredoc that names it', `python3 - <<'EOF'\nopen('${BUS_FILE}', 'w')\nEOF`],
@@ -615,6 +623,25 @@ describe('dispatch gate: Bash commands on the Task Bus', () => {
     );
 
     expect(status).toBe(2);
+  });
+});
+
+describe('dispatch gate: emptying and copying between buses', () => {
+  it.each([
+    ['truncate -s 0', `truncate -s 0 ${BUS_FILE}`],
+    ['truncate -s0', `truncate -s0 ${BUS_FILE}`],
+    ['truncate --size=0', `truncate --size=0 ${BUS_FILE}`],
+    ['truncate --size 0', `truncate --size 0 ${BUS_FILE}`],
+    ['truncate behind a path', `truncate -s 0 /w/${BUS_FILE}`],
+    ['cp bus to a mailbox file', `cp ${BUS_FILE} /w/${BUS_FILE}`],
+    ['cp a mailbox file to the bus', `cp /w/${BUS_FILE} ${BUS_FILE}`],
+    ['cp bus to a mailbox directory', `cp ${BUS_FILE} /w/.apm/bus/review-agent/`],
+    ['cp with flags', `cp -f -p ${BUS_FILE} /w/${BUS_FILE}`],
+    ['cp with quoted paths', `cp "${BUS_FILE}" "/w/${BUS_FILE}"`],
+    ['install bus to a mailbox', `install -m 644 ${BUS_FILE} /w/${BUS_FILE}`],
+    ['both in one command', `cp ${BUS_FILE} /w/${BUS_FILE} && truncate -s 0 ${BUS_FILE}`]
+  ])('lets %s pass', (_name, command) => {
+    expect(runBash(command).status).toBe(0);
   });
 });
 
