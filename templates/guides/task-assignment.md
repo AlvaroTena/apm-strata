@@ -89,7 +89,7 @@ Treat `.claude/settings.json`, `.claude/settings.local.json` and `{RULES_FILE}` 
 
 ### 2.6 Delivery Standards
 
-Bus directories and files are created by the Planner during the Planning Phase - do not re-create them. A Worker writes its report into the Report Bus in its session's mailbox, which starts empty at dispatch; before a follow-up, clear that one via terminal (e.g., `truncate -s 0` or shell redirection). The shared `.apm/bus/<agent-slug>/report.md` is not part of a Worker's cycle - reports are collected to a per-Task path per `{SKILL_PATH:apm-communication}` §4.5 Worktree Mailbox - and carries only reports from non-APM agents. Read the Task Bus before writing to it per `{SKILL_PATH:apm-communication}` §4 Message Bus Protocol. One Task Bus message carries one Task Prompt.
+Bus directories and files are created by the Planner during the Planning Phase - do not re-create them. A Worker writes its report into the Report Bus in its session's mailbox, which starts empty at dispatch; before a follow-up, clear that one with `truncate -s 0`, the same form a Worker uses on its Task Bus. The shared `.apm/bus/<agent-slug>/report.md` is not part of a Worker's cycle - reports are collected to a per-Task path per `{SKILL_PATH:apm-communication}` §4.5 Worktree Mailbox - and carries only reports from non-APM agents. Read the Task Bus before writing to it per `{SKILL_PATH:apm-communication}` §4 Message Bus Protocol. One Task Bus message carries one Task Prompt.
 
 **The bus is the source of truth and the trigger is only a pointer.** Write the prompt to the bus first, then send the fixed trigger text per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages. A trigger carries no Task content and never asks the session to run a skill. If a trigger is lost, the prompt is still on the bus and the Worker's manual fallback retrieves it.
 
@@ -193,7 +193,7 @@ Perform the following actions:
    - If it does not, write `none - <reason>`, naming what the Task builds from nothing.
    - If you cannot tell, it changes something: write the delta.
 4. Construct prompt body: Task Reference, Context from Dependencies (if applicable), Objective, Spec Deltas, Detailed Instructions, Workspace (with the branch and its base branch), Expected Output, Validation Criteria, Instruction Accuracy, Task Iteration, Task Logging instructions, Reporting Instructions.
-5. Read the Worker's Task Bus, then write the Task Prompt to it with the file tools, never from the shell: `.apm/bus/<agent-slug>/task.md`. The dispatch gate guards only file-tool writes, so a prompt written with `cat >` or a redirect is dispatched unchecked.
+5. Read the Worker's Task Bus, then write the Task Prompt to it with the file tools, never from the shell: `.apm/bus/<agent-slug>/task.md`. The dispatch gate checks the prompt's content only when it arrives through the Write or Edit tool, and blocks a shell command that writes the Task Bus.
 6. From the Task's repository directory, create the worktree per §2.5 Version Control Standards:
 
    ```
@@ -223,7 +223,7 @@ Perform the following actions:
 4. Write the follow-up's `## Spec Deltas` section per §2.8 Spec Delta Standards. When the change is the same, keep the baseline it started with, update the delta to what the follow-up now asks for, and validate it again. When the original said `none - <reason>`, it still holds while the follow-up only reshapes what the first attempt built on its unmerged branch. A follow-up that now touches something that existed on the base branch changes existing work: write the delta per §3.3 Task Prompt Construction.
 5. Construct the follow-up prompt per §4.2 Follow-Up Format. Same `log_path` as the original.
 6. Clear the Report Bus in the session's mailbox per §2.6 Delivery Standards.
-7. Read the Worker's Task Bus, then write to it with the file tools, never from the shell, for the same reason: `.apm/bus/<agent-slug>/task.md`. Copy it into the session's mailbox before resuming, together with anything new the follow-up cites, per `{SKILL_PATH:apm-communication}` §4.5 Worktree Mailbox. The rest of the mailbox is the session's own working state from the first attempt: leave it.
+7. Read the Worker's Task Bus, then write to it with the file tools, never from the shell, for the same reason: `.apm/bus/<agent-slug>/task.md`. Copy it into the session's mailbox with `cp` from the shared Task Bus before resuming, together with anything new the follow-up cites, per `{SKILL_PATH:apm-communication}` §4.5 Worktree Mailbox. The rest of the mailbox is the session's own working state from the first attempt: leave it.
 8. Confirm the session no longer appears in `claude agents --json`, then resume it in the background from the Task's repository directory using the full session id from its Task row, with no other flags - the session keeps the options it was launched with, and flags passed on the resume start a copy. Confirm it came back under the same id instead of as a copy. A copy means the short id was used, flags were passed, or the session had not finished stopping: a stop returns before the session has exited.
 9. Send the fixed trigger text to the session by name per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages. The session keeps the execution context of its first attempt, so the follow-up addresses what changed rather than restating what the session already did.
 

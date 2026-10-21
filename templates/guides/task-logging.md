@@ -66,7 +66,7 @@ Perform the following actions:
 
 Perform the following actions:
 1. Update the domain notes per §4.3 Domain Notes Format, before clearing anything - the Task Prompt is still on the bus and you may want it.
-2. Clear the incoming Task Bus: truncate `.apm/bus/<agent-slug>/task.md` via terminal (e.g., `truncate -s 0` or shell redirection).
+2. Clear the incoming Task Bus with `truncate -s 0 .apm/bus/<agent-slug>/task.md`. The dispatch gate blocks every other shell write to a Task Bus.
 3. Read the Report Bus, then write the Task Report to it: `.apm/bus/<agent-slug>/report.md`. The report is a concise summary - key outcome, status, log path, and any flags. Detail belongs in the Task Log.
 4. Send the fixed trigger text back per `{SKILL_PATH:apm-communication}` §4.4 Trigger Messages. It names the Report Bus path and carries none of the report's content.
 
